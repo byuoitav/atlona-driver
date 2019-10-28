@@ -436,3 +436,8 @@ func (v *VideoSwitcher6x2) GetHardwareInfo(ctx context.Context, addr string) (st
 	resp.PowerStatus = hardware.System.PowerStatus
 	return resp, nil
 }
+
+//GetInfo .
+func (v *VideoSwitcher6x2) GetInfo(ctx context.Context, addr string) error {
+	return nil
+}

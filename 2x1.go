@@ -73,3 +73,8 @@ func (v *VideoSwitcher2x1) SetInputByOutput(ctx context.Context, addr, input str
 	defer res.Body.Close()
 	return nil
 }
+
+//GetInfo .
+func (v *VideoSwitcher2x1) GetInfo(ctx context.Context, addr string) error {
+	return nil
+}

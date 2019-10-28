@@ -240,3 +240,8 @@ func (v *VideoSwitcher5x1) GetHardwareInfo(ctx context.Context, addr string) (st
 	var resp structs.HardwareInfo
 	return resp, nil
 }
+
+//GetInfo .
+func (v *VideoSwitcher5x1) GetInfo(ctx context.Context, addr string) error {
+	return nil
+}
