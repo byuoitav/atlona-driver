@@ -75,6 +75,7 @@ func (v *VideoSwitcher2x1) SetInputByOutput(ctx context.Context, addr, input str
 }
 
 //GetInfo .
-func (v *VideoSwitcher2x1) GetInfo(ctx context.Context, addr string) error {
-	return nil
+func (v *VideoSwitcher2x1) GetInfo(ctx context.Context, addr string) (interface{}, error) {
+	var info interface{}
+	return info, nil
 }

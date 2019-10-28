@@ -438,6 +438,7 @@ func (v *VideoSwitcher6x2) GetHardwareInfo(ctx context.Context, addr string) (st
 }
 
 //GetInfo .
-func (v *VideoSwitcher6x2) GetInfo(ctx context.Context, addr string) error {
-	return nil
+func (v *VideoSwitcher6x2) GetInfo(ctx context.Context, addr string) (interface{}, error) {
+	var info interface{}
+	return info, nil
 }
