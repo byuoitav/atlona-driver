@@ -68,7 +68,7 @@ func (v *VideoSwitcher5x1) GetInputByOutput(ctx context.Context, addr, output st
 }
 
 //SetInputByOutput .
-func (v *VideoSwitcher5x1) SetInputByOutput(ctx context.Context, addr, input string) error {
+func (v *VideoSwitcher5x1) SetInputByOutput(ctx context.Context, addr, output, input string) error {
 	intInput, nerr := strconv.Atoi(input)
 	if nerr != nil {
 		return fmt.Errorf("error occured when converting input to int: %w", nerr)

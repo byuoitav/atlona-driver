@@ -154,7 +154,7 @@ func (v *VideoSwitcher6x2) GetInputByOutput(ctx context.Context, addr, output st
 }
 
 //SetInputByOutput .
-func (v *VideoSwitcher6x2) SetInputByOutput(ctx context.Context, addr, input, output string) error {
+func (v *VideoSwitcher6x2) SetInputByOutput(ctx context.Context, addr, output, input string) error {
 	in, err := strconv.Atoi(input)
 	if err != nil {
 		return fmt.Errorf("error when making call: %w", err)

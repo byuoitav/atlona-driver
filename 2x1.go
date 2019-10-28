@@ -52,7 +52,7 @@ func (v *VideoSwitcher2x1) GetInputByOutput(ctx context.Context, addr, output st
 }
 
 // SetInputByOutput .
-func (v *VideoSwitcher2x1) SetInputByOutput(ctx context.Context, addr, input string) error {
+func (v *VideoSwitcher2x1) SetInputByOutput(ctx context.Context, addr, output, input string) error {
 	intInput, nerr := strconv.Atoi(input)
 	if nerr != nil {
 		return fmt.Errorf("failed to convert input from string to int: %w", nerr)
