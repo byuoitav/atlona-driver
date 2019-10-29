@@ -13,12 +13,6 @@ import (
 	"github.com/byuoitav/common/structs"
 )
 
-//VideoSwitcher6x2 .
-type VideoSwitcher6x2 struct {
-	Username string
-	Password string
-}
-
 type atlonaVideo struct {
 	Video struct {
 		VidOut struct {
@@ -110,9 +104,9 @@ func AddHeaders(req *http.Request) *http.Request {
 }
 
 //GetInputByOutput .
-func (v *VideoSwitcher6x2) GetInputByOutput(ctx context.Context, addr, output string) (string, error) {
+func (vs *AtlonaVideoSwitcher) getInputByOutput6x2(ctx context.Context, output string) (string, error) {
 	var resp atlonaVideo
-	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", addr)
+	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
 
 	requestBody := fmt.Sprintf(`
 	{
@@ -154,12 +148,12 @@ func (v *VideoSwitcher6x2) GetInputByOutput(ctx context.Context, addr, output st
 }
 
 //SetInputByOutput .
-func (v *VideoSwitcher6x2) SetInputByOutput(ctx context.Context, addr, output, input string) error {
+func (vs *AtlonaVideoSwitcher) setInputByOutput6x2(ctx context.Context, output, input string) error {
 	in, err := strconv.Atoi(input)
 	if err != nil {
 		return fmt.Errorf("error when making call: %w", err)
 	}
-	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", addr)
+	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
 	payload := strings.NewReader("")
 	if output == "1" {
 		payload = strings.NewReader(fmt.Sprintf(`
@@ -206,7 +200,7 @@ func (v *VideoSwitcher6x2) SetInputByOutput(ctx context.Context, addr, output, i
 }
 
 //SetVolumeByBlock .
-func (v *VideoSwitcher6x2) SetVolumeByBlock(ctx context.Context, addr, output string, level int) error {
+func (vs *AtlonaVideoSwitcher) setVolumeByBlock6x2(ctx context.Context, output string, level int) error {
 	//Atlona volume levels are from -90 to 10 and the number we recieve is 0-100
 	//if volume level is supposed to be zero set it to zero (which is -90) on atlona
 	if level == 0 {
@@ -215,7 +209,7 @@ func (v *VideoSwitcher6x2) SetVolumeByBlock(ctx context.Context, addr, output st
 		convertedVolume := -40 + math.Round(float64(level/2))
 		level = int(convertedVolume)
 	}
-	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", addr)
+	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
 	if output == "1" || output == "2" {
 		body := fmt.Sprintf(`
 		{
@@ -245,9 +239,9 @@ func (v *VideoSwitcher6x2) SetVolumeByBlock(ctx context.Context, addr, output st
 }
 
 //GetVolumeByBlock .
-func (v *VideoSwitcher6x2) GetVolumeByBlock(ctx context.Context, addr, output string) (int, error) {
+func (vs *AtlonaVideoSwitcher) getVolumeByBlock6x2(ctx context.Context, output string) (int, error) {
 	var resp atlonaAudio
-	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", addr)
+	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
 	requestBody := fmt.Sprintf(`
 	{
 		"getConfig": {
@@ -290,10 +284,10 @@ func (v *VideoSwitcher6x2) GetVolumeByBlock(ctx context.Context, addr, output st
 }
 
 //GetMutedByBlock .
-func (v *VideoSwitcher6x2) GetMutedByBlock(ctx context.Context, addr, output string) (bool, error) {
+func (vs *AtlonaVideoSwitcher) getMutedByBlock6x2(ctx context.Context, output string) (bool, error) {
 	var resp atlonaAudio
 	if output == "1" || output == "2" {
-		url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", addr)
+		url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
 		requestBody := fmt.Sprintf(`
 		{
 			"getConfig": {
@@ -337,8 +331,8 @@ func (v *VideoSwitcher6x2) GetMutedByBlock(ctx context.Context, addr, output str
 }
 
 //SetMutedByBlock .
-func (v *VideoSwitcher6x2) SetMutedByBlock(ctx context.Context, addr, output string, muted bool) error {
-	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", addr)
+func (vs *AtlonaVideoSwitcher) setMutedByBlock6x2(ctx context.Context, output string, muted bool) error {
+	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
 	if output == "1" || output == "2" {
 		body := fmt.Sprintf(`
 		{
@@ -370,11 +364,11 @@ func (v *VideoSwitcher6x2) SetMutedByBlock(ctx context.Context, addr, output str
 }
 
 //GetHardwareInfo .
-func (v *VideoSwitcher6x2) GetHardwareInfo(ctx context.Context, addr string) (structs.HardwareInfo, error) {
+func (vs *AtlonaVideoSwitcher) getHardwareInfo6x2(ctx context.Context) (structs.HardwareInfo, error) {
 	var network atlonaNetwork
 	var hardware atlonaHardwareInfo
 	var resp structs.HardwareInfo
-	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", addr)
+	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
 
 	//Get network info
 	payload := strings.NewReader(`
@@ -438,7 +432,7 @@ func (v *VideoSwitcher6x2) GetHardwareInfo(ctx context.Context, addr string) (st
 }
 
 //GetInfo .
-func (v *VideoSwitcher6x2) GetInfo(ctx context.Context, addr string) (interface{}, error) {
+func (vs *AtlonaVideoSwitcher) getInfo6x2(ctx context.Context) (interface{}, error) {
 	var info interface{}
-	return info, nil
+	return info, fmt.Errorf("not currently implemented")
 }

@@ -7,13 +7,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
-)
 
-//VideoSwitcher2x1 .
-type VideoSwitcher2x1 struct {
-	Username string
-	Password string
-}
+	"github.com/byuoitav/common/structs"
+)
 
 type wallPlateStruct struct {
 	LoginUr   int    `json:"login_ur"`
@@ -27,9 +23,9 @@ type wallPlateStruct struct {
 }
 
 // GetInputByOutput .
-func (v *VideoSwitcher2x1) GetInputByOutput(ctx context.Context, addr, output string) (string, error) {
+func (vs *AtlonaVideoSwitcher) getInputByOutput2x1(ctx context.Context, output string) (string, error) {
 	var resp wallPlateStruct
-	url := fmt.Sprintf("http://%s/aj.html?a=avs", addr)
+	url := fmt.Sprintf("http://%s/aj.html?a=avs", vs.Address)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("error when making request: %w", err)
@@ -52,7 +48,7 @@ func (v *VideoSwitcher2x1) GetInputByOutput(ctx context.Context, addr, output st
 }
 
 // SetInputByOutput .
-func (v *VideoSwitcher2x1) SetInputByOutput(ctx context.Context, addr, output, input string) error {
+func (vs *AtlonaVideoSwitcher) setInputByOutput2x1(ctx context.Context, output, input string) error {
 	intInput, nerr := strconv.Atoi(input)
 	if nerr != nil {
 		return fmt.Errorf("failed to convert input from string to int: %w", nerr)
@@ -60,7 +56,7 @@ func (v *VideoSwitcher2x1) SetInputByOutput(ctx context.Context, addr, output, i
 	if intInput != 1 && intInput != 2 {
 		return fmt.Errorf("Invalid Input, the input you sent was %v the valid inputs are 1 or 2", intInput)
 	}
-	url := fmt.Sprintf("http://%s/aj.html?a=command&cmd=x%sAVx1", addr, input)
+	url := fmt.Sprintf("http://%s/aj.html?a=command&cmd=x%sAVx1", vs.Address, input)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("error when making request: %w", err)
@@ -74,8 +70,14 @@ func (v *VideoSwitcher2x1) SetInputByOutput(ctx context.Context, addr, output, i
 	return nil
 }
 
+//GetHardwareInfo .
+func (vs *AtlonaVideoSwitcher) getHardwareInfo2x1(ctx context.Context) (structs.HardwareInfo, error) {
+	var resp structs.HardwareInfo
+	return resp, nil
+}
+
 //GetInfo .
-func (v *VideoSwitcher2x1) GetInfo(ctx context.Context, addr string) (interface{}, error) {
+func (vs *AtlonaVideoSwitcher) getInfo2x1(ctx context.Context) (interface{}, error) {
 	var info interface{}
-	return info, nil
+	return info, fmt.Errorf("not currently implemented")
 }

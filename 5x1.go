@@ -8,15 +8,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/byuoitav/common/structs"
 )
-
-//VideoSwitcher5x1 .
-type VideoSwitcher5x1 struct {
-	Username string
-	Password string
-}
 
 //Login .
 func login(ctx context.Context, addr string) error {
@@ -42,12 +37,14 @@ func login(ctx context.Context, addr string) error {
 }
 
 //GetInputByOutput .
-func (v *VideoSwitcher5x1) GetInputByOutput(ctx context.Context, addr, output string) (string, error) {
-	loginerr := login(ctx, addr)
-	if loginerr != nil {
-		return "", fmt.Errorf("error logging in to Atlona to make the request: %w", loginerr)
+func (vs *AtlonaVideoSwitcher) getInputByOutput5x1(ctx context.Context, output string) (string, error) {
+	if vs.LastLogin.IsZero() || time.Since(vs.LastLogin).Minutes() >= 2.00 {
+		loginerr := login(ctx, vs.Address)
+		if loginerr != nil {
+			return "", fmt.Errorf("error logging in to Atlona to make the request: %w", loginerr)
+		}
 	}
-	url := fmt.Sprintf("http://%s/ajstatus.html?value=status&uid=Y1&ro=0", addr)
+	url := fmt.Sprintf("http://%s/ajstatus.html?value=status&uid=Y1&ro=0", vs.Address)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("error when creting the request: %w", err)
@@ -68,7 +65,7 @@ func (v *VideoSwitcher5x1) GetInputByOutput(ctx context.Context, addr, output st
 }
 
 //SetInputByOutput .
-func (v *VideoSwitcher5x1) SetInputByOutput(ctx context.Context, addr, output, input string) error {
+func (vs *AtlonaVideoSwitcher) setInputByOutput5x1(ctx context.Context, output, input string) error {
 	intInput, nerr := strconv.Atoi(input)
 	if nerr != nil {
 		return fmt.Errorf("error occured when converting input to int: %w", nerr)
@@ -78,11 +75,13 @@ func (v *VideoSwitcher5x1) SetInputByOutput(ctx context.Context, addr, output, i
 	}
 	//decrement IntInput by 1 because the 5x1 is 0 based
 	intInput = intInput - 1
-	loginerr := login(ctx, addr)
-	if loginerr != nil {
-		return fmt.Errorf("error logging in to make a request: %w", loginerr)
+	if vs.LastLogin.IsZero() || time.Since(vs.LastLogin).Minutes() >= 2.00 {
+		loginerr := login(ctx, vs.Address)
+		if loginerr != nil {
+			return fmt.Errorf("error logging in to Atlona to make the request: %w", loginerr)
+		}
 	}
-	url := fmt.Sprintf("http://%s/ajstatus.html?value=status&uid=Y1&mlf=1&inp=%v", addr, input)
+	url := fmt.Sprintf("http://%s/ajstatus.html?value=status&uid=Y1&mlf=1&inp=%v", vs.Address, input)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("error when creating request: %w", err)
@@ -103,10 +102,12 @@ func (v *VideoSwitcher5x1) SetInputByOutput(ctx context.Context, addr, output, i
 }
 
 //SetVolumeByBlock .
-func (v *VideoSwitcher5x1) SetVolumeByBlock(ctx context.Context, addr, output string, level int) error {
-	loginerr := login(ctx, addr)
-	if loginerr != nil {
-		return fmt.Errorf("error logging into Atlona to make request: %w", loginerr)
+func (vs *AtlonaVideoSwitcher) setVolumeByBlock5x1(ctx context.Context, output string, level int) error {
+	if vs.LastLogin.IsZero() || time.Since(vs.LastLogin).Minutes() >= 2.00 {
+		loginerr := login(ctx, vs.Address)
+		if loginerr != nil {
+			return fmt.Errorf("error logging in to Atlona to make the request: %w", loginerr)
+		}
 	}
 	if level == 0 {
 		level = -80
@@ -114,7 +115,7 @@ func (v *VideoSwitcher5x1) SetVolumeByBlock(ctx context.Context, addr, output st
 		convertedVolume := -35 + math.Round(float64(level/2))
 		level = int(convertedVolume)
 	}
-	url := fmt.Sprintf("http://%s/ajstatus.html?value=status&uid=Z3&mlf=1&vol=%v", addr, level)
+	url := fmt.Sprintf("http://%s/ajstatus.html?value=status&uid=Z3&mlf=1&vol=%v", vs.Address, level)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("error when creating request: %w", err)
@@ -136,12 +137,14 @@ func (v *VideoSwitcher5x1) SetVolumeByBlock(ctx context.Context, addr, output st
 }
 
 //GetVolumeByBlock .
-func (v *VideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, addr, output string) (int, error) {
-	loginerr := login(ctx, addr)
-	if loginerr != nil {
-		return 0, fmt.Errorf("error logging into Atlona make a request: %w", loginerr)
+func (vs *AtlonaVideoSwitcher) getVolumeByBlock5x1(ctx context.Context, output string) (int, error) {
+	if vs.LastLogin.IsZero() || time.Since(vs.LastLogin).Minutes() >= 2.00 {
+		loginerr := login(ctx, vs.Address)
+		if loginerr != nil {
+			return 0, fmt.Errorf("error logging in to Atlona to make the request: %w", loginerr)
+		}
 	}
-	url := fmt.Sprintf("http://%s/ajstatus.html?value=status&uid=Y1&mlf=1&inp=", addr)
+	url := fmt.Sprintf("http://%s/ajstatus.html?value=status&uid=Y1&mlf=1&inp=", vs.Address)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return 0, fmt.Errorf("error when making request: %w", err)
@@ -155,7 +158,7 @@ func (v *VideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, addr, output st
 	resp := string(body)
 	splitRes := strings.Split(resp, ";")
 	if splitRes[0] == "ER" {
-		return 0, fmt.Errorf("Atlona has returned an error to the request", "")
+		return 0, fmt.Errorf("Atlona has returned an error to the request")
 	}
 	defer res.Body.Close()
 	//convert response back to 0-100 value
@@ -175,12 +178,14 @@ func (v *VideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, addr, output st
 }
 
 //GetMutedByBlock .
-func (v *VideoSwitcher5x1) GetMutedByBlock(ctx context.Context, addr, output string) (bool, error) {
-	loginerr := login(ctx, addr)
-	if loginerr != nil {
-		return false, fmt.Errorf("Error logging into the Atlona to make the request: %w", loginerr)
+func (vs *AtlonaVideoSwitcher) getMutedByBlock5x1(ctx context.Context, output string) (bool, error) {
+	if vs.LastLogin.IsZero() || time.Since(vs.LastLogin).Minutes() >= 2.00 {
+		loginerr := login(ctx, vs.Address)
+		if loginerr != nil {
+			return false, fmt.Errorf("error logging in to Atlona to make the request: %w", loginerr)
+		}
 	}
-	url := fmt.Sprintf("http://%s/ajstatus.html?value=status&uid=Y1&ro=0", addr)
+	url := fmt.Sprintf("http://%s/ajstatus.html?value=status&uid=Y1&ro=0", vs.Address)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return false, fmt.Errorf("error when making request: %w", err)
@@ -205,16 +210,18 @@ func (v *VideoSwitcher5x1) GetMutedByBlock(ctx context.Context, addr, output str
 }
 
 //SetMutedByBlock .
-func (v *VideoSwitcher5x1) SetMutedByBlock(ctx context.Context, addr, output string, muted bool) error {
-	loginerr := login(ctx, addr)
+func (vs *AtlonaVideoSwitcher) setMutedByBlock5x1(ctx context.Context, output string, muted bool) error {
 	var url string
-	if loginerr != nil {
-		return fmt.Errorf("Error logging into the Atlona to make the request: %w", loginerr)
+	if vs.LastLogin.IsZero() || time.Since(vs.LastLogin).Minutes() >= 2.00 {
+		loginerr := login(ctx, vs.Address)
+		if loginerr != nil {
+			return fmt.Errorf("error logging in to Atlona to make the request: %w", loginerr)
+		}
 	}
 	if muted {
-		url = fmt.Sprintf("http://%s/ajstatus.html?value=status&uid=Y1&mlf=1&lraud=1", addr)
+		url = fmt.Sprintf("http://%s/ajstatus.html?value=status&uid=Y1&mlf=1&lraud=1", vs.Address)
 	} else {
-		url = fmt.Sprintf("http://%s/ajstatus.html?value=status&uid=Y1&mlf=1&lraud=0", addr)
+		url = fmt.Sprintf("http://%s/ajstatus.html?value=status&uid=Y1&mlf=1&lraud=0", vs.Address)
 	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -236,13 +243,25 @@ func (v *VideoSwitcher5x1) SetMutedByBlock(ctx context.Context, addr, output str
 }
 
 //GetHardwareInfo .
-func (v *VideoSwitcher5x1) GetHardwareInfo(ctx context.Context, addr string) (structs.HardwareInfo, error) {
+func (vs *AtlonaVideoSwitcher) getHardwareInfo5x1(ctx context.Context) (structs.HardwareInfo, error) {
 	var resp structs.HardwareInfo
-	return resp, nil
+	if vs.LastLogin.IsZero() || time.Since(vs.LastLogin).Minutes() >= 2.00 {
+		loginerr := login(ctx, vs.Address)
+		if loginerr != nil {
+			return resp, fmt.Errorf("error logging in to Atlona to make the request: %w", loginerr)
+		}
+	}
+	return resp, fmt.Errorf("not currently implemented")
 }
 
 //GetInfo .
-func (v *VideoSwitcher5x1) GetInfo(ctx context.Context, addr string) (interface{}, error) {
+func (vs *AtlonaVideoSwitcher) getInfo5x1(ctx context.Context) (interface{}, error) {
 	var info interface{}
-	return info, nil
+	if vs.LastLogin.IsZero() || time.Since(vs.LastLogin).Minutes() >= 2.00 {
+		loginerr := login(ctx, vs.Address)
+		if loginerr != nil {
+			return info, fmt.Errorf("error logging in to Atlona to make the request: %w", loginerr)
+		}
+	}
+	return info, fmt.Errorf("not currently implemented")
 }
