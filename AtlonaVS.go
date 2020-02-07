@@ -63,7 +63,7 @@ type AtlonaVideoSwitcher6x2 struct {
 	DeviceType DeviceType
 }
 
-func createVideoSwitcher(ctx context.Context, addr, username, password string) (AtlonaVideoSwitcher, error) {
+func CreateVideoSwitcher(ctx context.Context, addr, username, password string) (AtlonaVideoSwitcher, error) {
 
 	url := fmt.Sprintf("http://%s/", addr)
 
