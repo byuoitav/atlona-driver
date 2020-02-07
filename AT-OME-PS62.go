@@ -95,16 +95,32 @@ type atlonaHardwareInfo struct {
 	} `json:"system"`
 }
 
-//AddHeaders .
-func AddHeaders(req *http.Request) *http.Request {
+func (vs *AtlonaVideoSwitcher6x2) make6x2request(ctx context.Context, url, requestBody string) ([]byte, error) {
+	payload := strings.NewReader(requestBody)
+
+	req, err := http.NewRequest("POST", url, payload)
+	if err != nil {
+		return nil, fmt.Errorf("error when creting the request: %w", err)
+	}
+	req = req.WithContext(ctx)
 	req.Header.Add("Content-Type", "application/json")
 	//This needs to be replaced with an environmental variable
 	req.Header.Add("Authorization", "Basic YWRtaW46QXRsb25h")
-	return req
+	res, gerr := http.DefaultClient.Do(req)
+	if gerr != nil {
+		return nil, fmt.Errorf("error when making call: %w", gerr)
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error when making call: %w", gerr)
+	}
+	return body, nil
 }
 
 //GetInputByOutput .
-func (vs *AtlonaVideoSwitcher) getInputByOutput6x2(ctx context.Context, output string) (string, error) {
+func (vs *AtlonaVideoSwitcher6x2) GetInputByOutput(ctx context.Context, output string) (string, error) {
 	var resp atlonaVideo
 	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
 
@@ -119,18 +135,11 @@ func (vs *AtlonaVideoSwitcher) getInputByOutput6x2(ctx context.Context, output s
 			}
 		}
 	}`)
-	payload := strings.NewReader(requestBody)
-	req, _ := http.NewRequest("POST", url, payload)
-	req = AddHeaders(req)
-	req = req.WithContext(ctx)
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("error when making call: %w", err)
+	body, gerr := vs.make6x2request(ctx, url, requestBody)
+	if gerr != nil {
+		return "", fmt.Errorf("An error occured while making the call: %w", gerr)
 	}
-	defer res.Body.Close()
-	body, _ := ioutil.ReadAll(res.Body)
-
-	err = json.Unmarshal([]byte(body), &resp)
+	err := json.Unmarshal([]byte(body), &resp)
 	if err != nil {
 		fmt.Printf("%s/n", body)
 		return "", fmt.Errorf("error when unmarshalling the response: %w", err)
@@ -148,15 +157,15 @@ func (vs *AtlonaVideoSwitcher) getInputByOutput6x2(ctx context.Context, output s
 }
 
 //SetInputByOutput .
-func (vs *AtlonaVideoSwitcher) setInputByOutput6x2(ctx context.Context, output, input string) error {
+func (vs *AtlonaVideoSwitcher6x2) SetInputByOutput(ctx context.Context, output, input string) error {
 	in, err := strconv.Atoi(input)
 	if err != nil {
 		return fmt.Errorf("error when making call: %w", err)
 	}
 	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
-	payload := strings.NewReader("")
+	requestBody := ""
 	if output == "1" {
-		payload = strings.NewReader(fmt.Sprintf(`
+		requestBody = fmt.Sprintf(`
 		{
 			"setConfig":{
 				"video":{
@@ -169,9 +178,9 @@ func (vs *AtlonaVideoSwitcher) setInputByOutput6x2(ctx context.Context, output, 
 					}
 				}
 			}
-		}`, in))
+		}`, in)
 	} else if output == "2" {
-		payload = strings.NewReader(fmt.Sprintf(`
+		requestBody = fmt.Sprintf(`
 		{
 			"setConfig":{
 				"video":{
@@ -184,23 +193,19 @@ func (vs *AtlonaVideoSwitcher) setInputByOutput6x2(ctx context.Context, output, 
 					}
 				}
 			}
-		}`, in))
+		}`, in)
 	} else {
 		return fmt.Errorf("Invalid Output. Valid Output names are 1 and 2")
 	}
-	req, _ := http.NewRequest("POST", url, payload)
-	req = AddHeaders(req)
-	req = req.WithContext(ctx)
-	res, gerr := http.DefaultClient.Do(req)
+	_, gerr := vs.make6x2request(ctx, url, requestBody)
 	if gerr != nil {
-		return fmt.Errorf("error when making call: %w", gerr)
+		return fmt.Errorf("An error occured while making the call: %w", gerr)
 	}
-	defer res.Body.Close()
 	return nil
 }
 
 //SetVolumeByBlock .
-func (vs *AtlonaVideoSwitcher) setVolumeByBlock6x2(ctx context.Context, output string, level int) error {
+func (vs *AtlonaVideoSwitcher6x2) SetVolumeByBlock(ctx context.Context, output string, level int) error {
 	//Atlona volume levels are from -90 to 10 and the number we recieve is 0-100
 	//if volume level is supposed to be zero set it to zero (which is -90) on atlona
 	if level == 0 {
@@ -211,7 +216,7 @@ func (vs *AtlonaVideoSwitcher) setVolumeByBlock6x2(ctx context.Context, output s
 	}
 	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
 	if output == "1" || output == "2" {
-		body := fmt.Sprintf(`
+		requestBody := fmt.Sprintf(`
 		{
 			"setConfig": {
 				"audio": {
@@ -223,15 +228,10 @@ func (vs *AtlonaVideoSwitcher) setVolumeByBlock6x2(ctx context.Context, output s
 				}
 			}
 		}`, output, level)
-		payload := strings.NewReader(body)
-		req, _ := http.NewRequest("POST", url, payload)
-		req = AddHeaders(req)
-		req = req.WithContext(ctx)
-		res, gerr := http.DefaultClient.Do(req)
+		_, gerr := vs.make6x2request(ctx, url, requestBody)
 		if gerr != nil {
-			return fmt.Errorf("error when making call: %w", gerr)
+			return fmt.Errorf("An error occured while making the call: %w", gerr)
 		}
-		defer res.Body.Close()
 	} else {
 		return fmt.Errorf("Invalid Output. Valid Audio Output names are Audio1 and Audio2: you gave us %s", output)
 	}
@@ -239,7 +239,7 @@ func (vs *AtlonaVideoSwitcher) setVolumeByBlock6x2(ctx context.Context, output s
 }
 
 //GetVolumeByBlock .
-func (vs *AtlonaVideoSwitcher) getVolumeByBlock6x2(ctx context.Context, output string) (int, error) {
+func (vs *AtlonaVideoSwitcher6x2) GetVolumeByBlock(ctx context.Context, output string) (int, error) {
 	var resp atlonaAudio
 	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
 	requestBody := fmt.Sprintf(`
@@ -251,20 +251,12 @@ func (vs *AtlonaVideoSwitcher) getVolumeByBlock6x2(ctx context.Context, output s
 				}
 			}
 	}`)
-	payload := strings.NewReader(requestBody)
-
-	req, _ := http.NewRequest("POST", url, payload)
-
-	req = AddHeaders(req)
-	req = req.WithContext(ctx)
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return 0, fmt.Errorf("error when making call: %w", err)
+	body, gerr := vs.make6x2request(ctx, url, requestBody)
+	if gerr != nil {
+		return 0, fmt.Errorf("An error occured while making the call: %w", gerr)
 	}
-	defer res.Body.Close()
-	body, _ := ioutil.ReadAll(res.Body)
 
-	err = json.Unmarshal([]byte(body), &resp) // here!
+	err := json.Unmarshal([]byte(body), &resp) // here!
 	if err != nil {
 		return 0, fmt.Errorf("error when unmarshalling the response: %w", err)
 	}
@@ -284,7 +276,7 @@ func (vs *AtlonaVideoSwitcher) getVolumeByBlock6x2(ctx context.Context, output s
 }
 
 //GetMutedByBlock .
-func (vs *AtlonaVideoSwitcher) getMutedByBlock6x2(ctx context.Context, output string) (bool, error) {
+func (vs *AtlonaVideoSwitcher6x2) GetMutedByBlock(ctx context.Context, output string) (bool, error) {
 	var resp atlonaAudio
 	if output == "1" || output == "2" {
 		url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
@@ -301,20 +293,11 @@ func (vs *AtlonaVideoSwitcher) getMutedByBlock6x2(ctx context.Context, output st
 				}	
 			}	
 		}`, output)
-		payload := strings.NewReader(requestBody)
-
-		req, _ := http.NewRequest("POST", url, payload)
-		req = req.WithContext(ctx)
-		req = AddHeaders(req)
-
-		res, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return false, fmt.Errorf("error when making call: %w", err)
+		body, gerr := vs.make6x2request(ctx, url, requestBody)
+		if gerr != nil {
+			return false, fmt.Errorf("An error occured while making the call: %w", gerr)
 		}
-		defer res.Body.Close()
-		body, _ := ioutil.ReadAll(res.Body)
-
-		err = json.Unmarshal([]byte(body), &resp)
+		err := json.Unmarshal([]byte(body), &resp)
 		if err != nil {
 			return false, fmt.Errorf("error when unmarshalling the response: %w", err)
 		}
@@ -331,10 +314,10 @@ func (vs *AtlonaVideoSwitcher) getMutedByBlock6x2(ctx context.Context, output st
 }
 
 //SetMutedByBlock .
-func (vs *AtlonaVideoSwitcher) setMutedByBlock6x2(ctx context.Context, output string, muted bool) error {
+func (vs *AtlonaVideoSwitcher6x2) SetMutedByBlock(ctx context.Context, output string, muted bool) error {
 	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
 	if output == "1" || output == "2" {
-		body := fmt.Sprintf(`
+		requestBody := fmt.Sprintf(`
 		{
 			"setConfig": {
 				"audio": {
@@ -348,15 +331,10 @@ func (vs *AtlonaVideoSwitcher) setMutedByBlock6x2(ctx context.Context, output st
 				}
 			}
 		}`, output, muted)
-		payload := strings.NewReader(body)
-		req, _ := http.NewRequest("POST", url, payload)
-		req = AddHeaders(req)
-		req = req.WithContext(ctx)
-		res, gerr := http.DefaultClient.Do(req)
+		_, gerr := vs.make6x2request(ctx, url, requestBody)
 		if gerr != nil {
-			return fmt.Errorf("error when making call: %s", gerr)
+			return fmt.Errorf("An error occured while making the call: %w", gerr)
 		}
-		defer res.Body.Close()
 	} else {
 		return fmt.Errorf("Invalid Output. Valid Output names are Audio1 and Audio2 you gave us %s", output)
 	}
@@ -364,14 +342,14 @@ func (vs *AtlonaVideoSwitcher) setMutedByBlock6x2(ctx context.Context, output st
 }
 
 //GetHardwareInfo .
-func (vs *AtlonaVideoSwitcher) getHardwareInfo6x2(ctx context.Context) (structs.HardwareInfo, error) {
+func (vs *AtlonaVideoSwitcher6x2) GetHardwareInfo(ctx context.Context) (structs.HardwareInfo, error) {
 	var network atlonaNetwork
 	var hardware atlonaHardwareInfo
 	var resp structs.HardwareInfo
 	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
 
 	//Get network info
-	payload := strings.NewReader(`
+	requestBody := fmt.Sprintf(`
 	{
 		"getConfig": {
 			"network": {
@@ -380,43 +358,29 @@ func (vs *AtlonaVideoSwitcher) getHardwareInfo6x2(ctx context.Context) (structs.
 			}
 		}
 	}`)
-	req, _ := http.NewRequest("POST", url, payload)
-
-	req = AddHeaders(req)
-	req = req.WithContext(ctx)
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return resp, fmt.Errorf("error when making call: %w", err)
+	body, gerr := vs.make6x2request(ctx, url, requestBody)
+	if gerr != nil {
+		return structs.HardwareInfo{}, fmt.Errorf("An error occured while making the call: %w", gerr)
 	}
-	defer res.Body.Close()
-	body, _ := ioutil.ReadAll(res.Body)
 
-	err = json.Unmarshal([]byte(body), &network)
+	err := json.Unmarshal([]byte(body), &network)
 
 	if err != nil {
 		return resp, fmt.Errorf("error when unmarshalling the response: %w", err)
 	}
 
 	//Get other hardware info
-	payload = strings.NewReader(`
+	requestBody = fmt.Sprintf(`
 	{
 		"getConfig": {
 			"system": {}
 		}
 	}`)
-	req, _ = http.NewRequest("POST", url, payload)
-
-	req = AddHeaders(req)
-	req = req.WithContext(ctx)
-	res, err = http.DefaultClient.Do(req)
-	if err != nil {
-		return resp, fmt.Errorf("error when making call: %w", err)
+	body, gerr = vs.make6x2request(ctx, url, requestBody)
+	if gerr != nil {
+		return structs.HardwareInfo{}, fmt.Errorf("An error occured while making the call: %w", gerr)
 	}
-	defer res.Body.Close()
-	body, _ = ioutil.ReadAll(res.Body)
-
 	err = json.Unmarshal([]byte(body), &hardware)
-
 	if err != nil {
 		return resp, fmt.Errorf("error when unmarshalling the response: %w", err)
 	}
@@ -432,7 +396,7 @@ func (vs *AtlonaVideoSwitcher) getHardwareInfo6x2(ctx context.Context) (structs.
 }
 
 //GetInfo .
-func (vs *AtlonaVideoSwitcher) getInfo6x2(ctx context.Context) (interface{}, error) {
+func (vs *AtlonaVideoSwitcher6x2) GetInfo(ctx context.Context) (interface{}, error) {
 	var info interface{}
 	return info, fmt.Errorf("not currently implemented")
 }
