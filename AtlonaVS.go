@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
-
-	"github.com/gorilla/websocket"
 )
 
 type DeviceType int
@@ -35,32 +33,27 @@ type AtlonaVideoSwitcher interface {
 }
 
 type AtlonaVideoSwitcher2x1 struct {
-	Username   string
-	Password   string
-	Address    string
-	DeviceType DeviceType
+	Username string
+	Password string
+	Address  string
 }
 
 type AtlonaVideoSwitcher4x1 struct {
-	Username   string
-	Password   string
-	Address    string
-	DeviceType DeviceType
+	Username string
+	Password string
+	Address  string
 }
 
 type AtlonaVideoSwitcher5x1 struct {
-	Username   string
-	Password   string
-	Address    string
-	DeviceType DeviceType
-	ws         *websocket.Conn
+	Username string
+	Password string
+	Address  string
 }
 
 type AtlonaVideoSwitcher6x2 struct {
-	Username   string
-	Password   string
-	Address    string
-	DeviceType DeviceType
+	Username string
+	Password string
+	Address  string
 }
 
 func CreateVideoSwitcher(ctx context.Context, addr, username, password string) (AtlonaVideoSwitcher, error) {
@@ -88,34 +81,30 @@ func CreateVideoSwitcher(ctx context.Context, addr, username, password string) (
 	switch deviceType {
 	case "AT-OME-PS62":
 		Atlonavs := &AtlonaVideoSwitcher6x2{
-			Username:   username,
-			Password:   password,
-			Address:    addr,
-			DeviceType: Atlona6x2,
+			Username: username,
+			Password: password,
+			Address:  addr,
 		}
 		return Atlonavs, nil
 	case "AT-UHD-SW-52ED":
 		Atlonavs := &AtlonaVideoSwitcher5x1{
-			Username:   username,
-			Password:   password,
-			Address:    addr,
-			DeviceType: Atlona5x1,
+			Username: username,
+			Password: password,
+			Address:  addr,
 		}
 		return Atlonavs, nil
 	case "AT-JUNO-451-HDBT":
 		Atlonavs := &AtlonaVideoSwitcher4x1{
-			Username:   username,
-			Password:   password,
-			Address:    addr,
-			DeviceType: Atlona4x1,
+			Username: username,
+			Password: password,
+			Address:  addr,
 		}
 		return Atlonavs, nil
 	case "AT-HDVS-210U":
 		Atlonavs := &AtlonaVideoSwitcher2x1{
-			Username:   username,
-			Password:   password,
-			Address:    addr,
-			DeviceType: Atlona2x1,
+			Username: username,
+			Password: password,
+			Address:  addr,
 		}
 		return Atlonavs, nil
 	default:

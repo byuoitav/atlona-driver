@@ -28,27 +28,26 @@ type room struct {
 }
 
 //openWebsocket .
-func (vs *AtlonaVideoSwitcher5x1) openWebsocket(c context.Context) error {
+func openWebsocket(ctx context.Context, address string) (*websocket.Conn, error) {
 	dialer := &websocket.Dialer{}
-	ctx, cancel := context.WithTimeout(c, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	ws, _, err := dialer.DialContext(ctx, fmt.Sprintf("ws://%s:543", vs.Address), nil)
+	ws, _, err := dialer.DialContext(ctx, fmt.Sprintf("ws://%s:543", address), nil)
 	if err != nil {
-		return fmt.Errorf("failed to open websocket: %s", err.Error())
+		return nil, fmt.Errorf("failed to open websocket: %s", err.Error())
 	}
-	vs.ws = ws
-	return nil
+	return ws, nil
 }
 
 //closeWebsocket .
-func (vs *AtlonaVideoSwitcher5x1) closeWebsocket(c context.Context) error {
-	err := vs.ws.WriteMessage(websocket.CloseMessage, []byte{})
+func closeWebsocket(ctx context.Context, ws *websocket.Conn) error {
+	err := ws.WriteMessage(websocket.CloseMessage, []byte{})
 	if err != nil {
 		return fmt.Errorf("failed to close websocket: %s", err.Error())
 	}
 
-	err = vs.ws.Close()
+	err = ws.Close()
 	if err != nil {
 		return fmt.Errorf("failed to close websocket: %s", err.Error())
 	}
@@ -58,8 +57,12 @@ func (vs *AtlonaVideoSwitcher5x1) closeWebsocket(c context.Context) error {
 
 //GetInputByOutput .
 func (vs *AtlonaVideoSwitcher5x1) GetInputByOutput(ctx context.Context, output string) (string, error) {
-	vs.openWebsocket(ctx)
-	defer vs.closeWebsocket(ctx)
+	ws, err := openWebsocket(ctx, vs.Address)
+	if err != nil {
+		return "", fmt.Errorf("failed to open websocket: %s", err.Error())
+	}
+
+	defer closeWebsocket(ctx, ws)
 	var roomInfo room
 	body := `{
 		"jsonrpc": "2.0",
@@ -72,12 +75,12 @@ func (vs *AtlonaVideoSwitcher5x1) GetInputByOutput(ctx context.Context, output s
 		}
 	}`
 
-	err := vs.ws.WriteMessage(websocket.TextMessage, []byte(body))
+	err = ws.WriteMessage(websocket.TextMessage, []byte(body))
 	if err != nil {
 		return "", fmt.Errorf("failed to write message: %s", err.Error())
 	}
 
-	_, bytes, err := vs.ws.ReadMessage()
+	_, bytes, err := ws.ReadMessage()
 	if err != nil {
 		return "", fmt.Errorf("failed to read message: %s", err.Error())
 	}
@@ -93,8 +96,12 @@ func (vs *AtlonaVideoSwitcher5x1) GetInputByOutput(ctx context.Context, output s
 
 //SetInputByOutput .
 func (vs *AtlonaVideoSwitcher5x1) SetInputByOutput(ctx context.Context, output, input string) error {
-	vs.openWebsocket(ctx)
-	defer vs.closeWebsocket(ctx)
+	ws, err := openWebsocket(ctx, vs.Address)
+	if err != nil {
+		return fmt.Errorf("failed to open websocket: %s", err.Error())
+	}
+
+	defer closeWebsocket(ctx, ws)
 	intInput, nerr := strconv.Atoi(input)
 
 	if nerr != nil {
@@ -116,7 +123,7 @@ func (vs *AtlonaVideoSwitcher5x1) SetInputByOutput(ctx context.Context, output, 
 		}
 	  }`, input)
 
-	err := vs.ws.WriteMessage(websocket.TextMessage, []byte(body))
+	err = ws.WriteMessage(websocket.TextMessage, []byte(body))
 	if err != nil {
 		return fmt.Errorf("failed to write message: %s", err.Error())
 	}
@@ -126,8 +133,12 @@ func (vs *AtlonaVideoSwitcher5x1) SetInputByOutput(ctx context.Context, output, 
 
 //SetVolumeByBlock .
 func (vs *AtlonaVideoSwitcher5x1) SetVolumeByBlock(ctx context.Context, output string, level int) error {
-	vs.openWebsocket(ctx)
-	defer vs.closeWebsocket(ctx)
+	ws, err := openWebsocket(ctx, vs.Address)
+	if err != nil {
+		return fmt.Errorf("failed to open websocket: %s", err.Error())
+	}
+
+	defer closeWebsocket(ctx, ws)
 
 	if level == 0 {
 		level = -80
@@ -147,7 +158,7 @@ func (vs *AtlonaVideoSwitcher5x1) SetVolumeByBlock(ctx context.Context, output s
 		}
 	  }`, level)
 
-	err := vs.ws.WriteMessage(websocket.TextMessage, []byte(body))
+	err = ws.WriteMessage(websocket.TextMessage, []byte(body))
 	if err != nil {
 		return fmt.Errorf("failed to write message: %s", err.Error())
 
@@ -157,8 +168,12 @@ func (vs *AtlonaVideoSwitcher5x1) SetVolumeByBlock(ctx context.Context, output s
 
 //GetVolumeByBlock .
 func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output string) (int, error) {
-	vs.openWebsocket(ctx)
-	defer vs.closeWebsocket(ctx)
+	ws, err := openWebsocket(ctx, vs.Address)
+	if err != nil {
+		return 0, fmt.Errorf("failed to open websocket: %s", err.Error())
+	}
+
+	defer closeWebsocket(ctx, ws)
 
 	var roomInfo room
 	body := `{
@@ -172,12 +187,12 @@ func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output s
 		}
 	}`
 
-	err := vs.ws.WriteMessage(websocket.TextMessage, []byte(body))
+	err = ws.WriteMessage(websocket.TextMessage, []byte(body))
 	if err != nil {
 		return 0, fmt.Errorf("failed to write message: %s", err.Error())
 	}
 
-	_, bytes, err := vs.ws.ReadMessage()
+	_, bytes, err := ws.ReadMessage()
 	if err != nil {
 		return 0, fmt.Errorf("failed to read message: %s", err.Error())
 	}
@@ -206,8 +221,12 @@ func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output s
 
 //GetMutedByBlock .
 func (vs *AtlonaVideoSwitcher5x1) GetMutedByBlock(ctx context.Context, output string) (bool, error) {
-	vs.openWebsocket(ctx)
-	defer vs.closeWebsocket(ctx)
+	ws, err := openWebsocket(ctx, vs.Address)
+	if err != nil {
+		return false, fmt.Errorf("failed to open websocket: %s", err.Error())
+	}
+
+	defer closeWebsocket(ctx, ws)
 
 	var roomInfo room
 	body := `{
@@ -221,12 +240,12 @@ func (vs *AtlonaVideoSwitcher5x1) GetMutedByBlock(ctx context.Context, output st
 		}
 	}`
 
-	err := vs.ws.WriteMessage(websocket.TextMessage, []byte(body))
+	err = ws.WriteMessage(websocket.TextMessage, []byte(body))
 	if err != nil {
 		return false, fmt.Errorf("failed to write message: %s", err.Error())
 	}
 
-	_, bytes, err := vs.ws.ReadMessage()
+	_, bytes, err := ws.ReadMessage()
 	if err != nil {
 		return false, fmt.Errorf("failed to read message: %s", err.Error())
 	}
@@ -262,8 +281,12 @@ func (vs *AtlonaVideoSwitcher5x1) GetMutedByBlock(ctx context.Context, output st
 
 //SetMutedByBlock .
 func (vs *AtlonaVideoSwitcher5x1) SetMutedByBlock(ctx context.Context, output string, muted bool) error {
-	vs.openWebsocket(ctx)
-	defer vs.closeWebsocket(ctx)
+	ws, err := openWebsocket(ctx, vs.Address)
+	if err != nil {
+		return fmt.Errorf("failed to open websocket: %s", err.Error())
+	}
+
+	defer closeWebsocket(ctx, ws)
 
 	var audioBlock string
 	muteInt := 0
@@ -293,7 +316,7 @@ func (vs *AtlonaVideoSwitcher5x1) SetMutedByBlock(ctx context.Context, output st
 		}
 	  }`, audioBlock)
 
-	err := vs.ws.WriteMessage(websocket.TextMessage, []byte(body))
+	err = ws.WriteMessage(websocket.TextMessage, []byte(body))
 	if err != nil {
 		return fmt.Errorf("failed to write message: %s", err.Error())
 	}
