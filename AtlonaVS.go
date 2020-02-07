@@ -63,7 +63,7 @@ type AtlonaVideoSwitcher6x2 struct {
 	DeviceType DeviceType
 }
 
-func createVideoSwitcher(ctx context.Context, addr string) (AtlonaVideoSwitcher, error) {
+func createVideoSwitcher(ctx context.Context, addr, username, password string) (AtlonaVideoSwitcher, error) {
 
 	url := fmt.Sprintf("http://%s/", addr)
 
@@ -88,24 +88,32 @@ func createVideoSwitcher(ctx context.Context, addr string) (AtlonaVideoSwitcher,
 	switch deviceType {
 	case "AT-OME-PS62":
 		Atlonavs := &AtlonaVideoSwitcher6x2{
+			Username:   username,
+			Password:   password,
 			Address:    addr,
 			DeviceType: Atlona6x2,
 		}
 		return Atlonavs, nil
 	case "AT-UHD-SW-52ED":
 		Atlonavs := &AtlonaVideoSwitcher5x1{
+			Username:   username,
+			Password:   password,
 			Address:    addr,
 			DeviceType: Atlona5x1,
 		}
 		return Atlonavs, nil
 	case "AT-JUNO-451-HDBT":
 		Atlonavs := &AtlonaVideoSwitcher4x1{
+			Username:   username,
+			Password:   password,
 			Address:    addr,
 			DeviceType: Atlona4x1,
 		}
 		return Atlonavs, nil
 	case "AT-HDVS-210U":
 		Atlonavs := &AtlonaVideoSwitcher2x1{
+			Username:   username,
+			Password:   password,
 			Address:    addr,
 			DeviceType: Atlona2x1,
 		}
