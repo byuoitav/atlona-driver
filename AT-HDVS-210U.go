@@ -11,6 +11,12 @@ import (
 	"github.com/byuoitav/common/structs"
 )
 
+type AtlonaVideoSwitcher2x1 struct {
+	Username string
+	Password string
+	Address  string
+}
+
 type wallPlateStruct struct {
 	LoginUr   int    `json:"login_ur"`
 	LoginUser string `json:"login_user"`

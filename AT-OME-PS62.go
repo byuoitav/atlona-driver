@@ -13,6 +13,12 @@ import (
 	"github.com/byuoitav/common/structs"
 )
 
+type AtlonaVideoSwitcher6x2 struct {
+	Username string
+	Password string
+	Address  string
+}
+
 type atlonaVideo struct {
 	Video struct {
 		VidOut struct {

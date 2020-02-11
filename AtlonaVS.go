@@ -11,14 +11,6 @@ import (
 
 type DeviceType int
 
-const (
-	Undefined DeviceType = iota
-	Atlona6x2
-	Atlona5x1
-	Atlona4x1
-	Atlona2x1
-)
-
 type AtlonaVideoSwitcher interface {
 	GetInputByOutput(ctx context.Context, output string) (string, error)
 	SetInputByOutput(ctx context.Context, output, input string) error
@@ -30,30 +22,6 @@ type AtlonaVideoSwitcher interface {
 	GetMutedByBlock(ctx context.Context, block string) (bool, error)
 
 	GetInfo(ctx context.Context) (interface{}, error)
-}
-
-type AtlonaVideoSwitcher2x1 struct {
-	Username string
-	Password string
-	Address  string
-}
-
-type AtlonaVideoSwitcher4x1 struct {
-	Username string
-	Password string
-	Address  string
-}
-
-type AtlonaVideoSwitcher5x1 struct {
-	Username string
-	Password string
-	Address  string
-}
-
-type AtlonaVideoSwitcher6x2 struct {
-	Username string
-	Password string
-	Address  string
 }
 
 func CreateVideoSwitcher(ctx context.Context, addr, username, password string) (AtlonaVideoSwitcher, error) {
@@ -88,9 +56,10 @@ func CreateVideoSwitcher(ctx context.Context, addr, username, password string) (
 		return Atlonavs, nil
 	case "AT-UHD-SW-52ED":
 		Atlonavs := &AtlonaVideoSwitcher5x1{
-			Username: username,
-			Password: password,
-			Address:  addr,
+			Username:    username,
+			Password:    password,
+			Address:     addr,
+			requestChan: make(chan request),
 		}
 		return Atlonavs, nil
 	case "AT-JUNO-451-HDBT":

@@ -16,6 +16,12 @@ const (
 	infoPage       = "info"
 )
 
+type AtlonaVideoSwitcher4x1 struct {
+	Username string
+	Password string
+	Address  string
+}
+
 // AVSettings is the response from the switcher for the av settings page
 type AVSettings struct {
 	HDMIInputAudioBreakout int   `json:"ARC"`

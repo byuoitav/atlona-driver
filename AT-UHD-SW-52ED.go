@@ -6,11 +6,20 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/byuoitav/common/structs"
 	"github.com/gorilla/websocket"
 )
+
+type AtlonaVideoSwitcher5x1 struct {
+	Username    string
+	Password    string
+	Address     string
+	requestChan chan request
+	once        sync.Once
+}
 
 type room struct {
 	Jsonrpc string `json:"jsonrpc"`
@@ -25,6 +34,34 @@ type room struct {
 			AnalogAudioMute int    `json:"Analog Audio Mute"`
 		} `json:"AV Settings"`
 	} `json:"result"`
+}
+
+type response struct {
+	response []byte
+	err      error
+}
+
+type request struct {
+	command string
+	resp    chan response
+}
+
+func (vs *AtlonaVideoSwitcher5x1) runRequestManager() {
+	ws, _ := openWebsocket(context.Background(), vs.Address)
+	fmt.Println("This should only happen once.")
+
+	for req := range vs.requestChan {
+		err := ws.WriteMessage(websocket.TextMessage, []byte(req.command))
+		if err != nil {
+			req.resp <- response{response: nil, err: fmt.Errorf("failed to write message: %s", err.Error())}
+		}
+
+		_, bytes, err := ws.ReadMessage()
+		if err != nil {
+			req.resp <- response{response: nil, err: fmt.Errorf("failed to read message: %s", err)}
+		}
+		req.resp <- response{response: bytes, err: nil}
+	}
 }
 
 //openWebsocket .
@@ -57,12 +94,8 @@ func closeWebsocket(ctx context.Context, ws *websocket.Conn) error {
 
 //GetInputByOutput .
 func (vs *AtlonaVideoSwitcher5x1) GetInputByOutput(ctx context.Context, output string) (string, error) {
-	ws, err := openWebsocket(ctx, vs.Address)
-	if err != nil {
-		return "", fmt.Errorf("failed to open websocket: %s", err.Error())
-	}
+	vs.once.Do(vs.runRequestManager)
 
-	defer closeWebsocket(ctx, ws)
 	var roomInfo room
 	body := `{
 		"jsonrpc": "2.0",
@@ -75,17 +108,18 @@ func (vs *AtlonaVideoSwitcher5x1) GetInputByOutput(ctx context.Context, output s
 		}
 	}`
 
-	err = ws.WriteMessage(websocket.TextMessage, []byte(body))
-	if err != nil {
-		return "", fmt.Errorf("failed to write message: %s", err.Error())
+	req := request{command: body, resp: make(chan response)}
+
+	vs.requestChan <- req
+
+	var resp response
+	resp = <-req.resp
+
+	if resp.err != nil {
+		return "", fmt.Errorf("failed to read message from channel: %s", resp.err.Error())
 	}
 
-	_, bytes, err := ws.ReadMessage()
-	if err != nil {
-		return "", fmt.Errorf("failed to read message: %s", err.Error())
-	}
-
-	err = json.Unmarshal(bytes, &roomInfo)
+	err := json.Unmarshal(resp.response, &roomInfo)
 
 	if err != nil {
 		return "", fmt.Errorf("failed to unmarshal message: %s", err.Error())
@@ -96,12 +130,8 @@ func (vs *AtlonaVideoSwitcher5x1) GetInputByOutput(ctx context.Context, output s
 
 //SetInputByOutput .
 func (vs *AtlonaVideoSwitcher5x1) SetInputByOutput(ctx context.Context, output, input string) error {
-	ws, err := openWebsocket(ctx, vs.Address)
-	if err != nil {
-		return fmt.Errorf("failed to open websocket: %s", err.Error())
-	}
+	vs.once.Do(vs.runRequestManager)
 
-	defer closeWebsocket(ctx, ws)
 	intInput, nerr := strconv.Atoi(input)
 
 	if nerr != nil {
@@ -123,22 +153,28 @@ func (vs *AtlonaVideoSwitcher5x1) SetInputByOutput(ctx context.Context, output, 
 		}
 	  }`, input)
 
-	err = ws.WriteMessage(websocket.TextMessage, []byte(body))
-	if err != nil {
-		return fmt.Errorf("failed to write message: %s", err.Error())
+	req := request{command: body, resp: make(chan response)}
+
+	vs.requestChan <- req
+
+	var resp response
+	resp = <-req.resp
+
+	if resp.err != nil {
+		return fmt.Errorf("failed to read message from channel: %s", resp.err.Error())
 	}
+
+	// err = ws.WriteMessage(websocket.TextMessage, []byte(body))
+	// if err != nil {
+	// 	return fmt.Errorf("failed to write message: %s", err.Error())
+	// }
 
 	return nil
 }
 
 //SetVolumeByBlock .
 func (vs *AtlonaVideoSwitcher5x1) SetVolumeByBlock(ctx context.Context, output string, level int) error {
-	ws, err := openWebsocket(ctx, vs.Address)
-	if err != nil {
-		return fmt.Errorf("failed to open websocket: %s", err.Error())
-	}
-
-	defer closeWebsocket(ctx, ws)
+	vs.once.Do(vs.runRequestManager)
 
 	if level == 0 {
 		level = -80
@@ -158,22 +194,23 @@ func (vs *AtlonaVideoSwitcher5x1) SetVolumeByBlock(ctx context.Context, output s
 		}
 	  }`, level)
 
-	err = ws.WriteMessage(websocket.TextMessage, []byte(body))
-	if err != nil {
-		return fmt.Errorf("failed to write message: %s", err.Error())
+	req := request{command: body, resp: make(chan response)}
 
+	vs.requestChan <- req
+
+	var resp response
+	resp = <-req.resp
+
+	if resp.err != nil {
+		return fmt.Errorf("failed to read message from channel: %s", resp.err.Error())
 	}
+
 	return nil
 }
 
 //GetVolumeByBlock .
 func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output string) (int, error) {
-	ws, err := openWebsocket(ctx, vs.Address)
-	if err != nil {
-		return 0, fmt.Errorf("failed to open websocket: %s", err.Error())
-	}
-
-	defer closeWebsocket(ctx, ws)
+	vs.once.Do(vs.runRequestManager)
 
 	var roomInfo room
 	body := `{
@@ -187,17 +224,18 @@ func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output s
 		}
 	}`
 
-	err = ws.WriteMessage(websocket.TextMessage, []byte(body))
-	if err != nil {
-		return 0, fmt.Errorf("failed to write message: %s", err.Error())
+	req := request{command: body, resp: make(chan response)}
+
+	vs.requestChan <- req
+
+	var resp response
+	resp = <-req.resp
+
+	if resp.err != nil {
+		return 0, fmt.Errorf("failed to read message from channel: %s", resp.err.Error())
 	}
 
-	_, bytes, err := ws.ReadMessage()
-	if err != nil {
-		return 0, fmt.Errorf("failed to read message: %s", err.Error())
-	}
-
-	err = json.Unmarshal(bytes, &roomInfo)
+	err := json.Unmarshal(resp.response, &roomInfo)
 
 	if err != nil {
 		return 0, fmt.Errorf("failed to unmarshal response: %s", err.Error())
@@ -221,12 +259,7 @@ func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output s
 
 //GetMutedByBlock .
 func (vs *AtlonaVideoSwitcher5x1) GetMutedByBlock(ctx context.Context, output string) (bool, error) {
-	ws, err := openWebsocket(ctx, vs.Address)
-	if err != nil {
-		return false, fmt.Errorf("failed to open websocket: %s", err.Error())
-	}
-
-	defer closeWebsocket(ctx, ws)
+	vs.once.Do(vs.runRequestManager)
 
 	var roomInfo room
 	body := `{
@@ -240,17 +273,18 @@ func (vs *AtlonaVideoSwitcher5x1) GetMutedByBlock(ctx context.Context, output st
 		}
 	}`
 
-	err = ws.WriteMessage(websocket.TextMessage, []byte(body))
-	if err != nil {
-		return false, fmt.Errorf("failed to write message: %s", err.Error())
+	req := request{command: body, resp: make(chan response)}
+
+	vs.requestChan <- req
+
+	var resp response
+	resp = <-req.resp
+
+	if resp.err != nil {
+		return false, fmt.Errorf("failed to read message from channel: %s", resp.err.Error())
 	}
 
-	_, bytes, err := ws.ReadMessage()
-	if err != nil {
-		return false, fmt.Errorf("failed to read message: %s", err.Error())
-	}
-
-	err = json.Unmarshal(bytes, &roomInfo)
+	err := json.Unmarshal(resp.response, &roomInfo)
 
 	if err != nil {
 		return false, fmt.Errorf("failed to unmarshal response: %s", err.Error())
@@ -281,12 +315,7 @@ func (vs *AtlonaVideoSwitcher5x1) GetMutedByBlock(ctx context.Context, output st
 
 //SetMutedByBlock .
 func (vs *AtlonaVideoSwitcher5x1) SetMutedByBlock(ctx context.Context, output string, muted bool) error {
-	ws, err := openWebsocket(ctx, vs.Address)
-	if err != nil {
-		return fmt.Errorf("failed to open websocket: %s", err.Error())
-	}
-
-	defer closeWebsocket(ctx, ws)
+	vs.once.Do(vs.runRequestManager)
 
 	var audioBlock string
 	muteInt := 0
@@ -316,9 +345,15 @@ func (vs *AtlonaVideoSwitcher5x1) SetMutedByBlock(ctx context.Context, output st
 		}
 	  }`, audioBlock)
 
-	err = ws.WriteMessage(websocket.TextMessage, []byte(body))
-	if err != nil {
-		return fmt.Errorf("failed to write message: %s", err.Error())
+	req := request{command: body, resp: make(chan response)}
+
+	vs.requestChan <- req
+
+	var resp response
+	resp = <-req.resp
+
+	if resp.err != nil {
+		return fmt.Errorf("failed to read message from channel: %s", resp.err.Error())
 	}
 
 	return nil
