@@ -43,25 +43,24 @@ type response struct {
 
 type request struct {
 	command string
+	work    func(*websocket.Conn, string) ([]byte, error)
 	resp    chan response
 }
 
 func (vs *AtlonaVideoSwitcher5x1) runRequestManager() {
-	ws, _ := openWebsocket(context.Background(), vs.Address)
-	fmt.Println("This should only happen once.")
-
-	for req := range vs.requestChan {
-		err := ws.WriteMessage(websocket.TextMessage, []byte(req.command))
+	go func(requestChan chan request) {
+		ws, err := openWebsocket(context.Background(), vs.Address)
 		if err != nil {
-			req.resp <- response{response: nil, err: fmt.Errorf("failed to write message: %s", err.Error())}
+			fmt.Print("Websocket WAS NOT CREATED")
 		}
 
-		_, bytes, err := ws.ReadMessage()
-		if err != nil {
-			req.resp <- response{response: nil, err: fmt.Errorf("failed to read message: %s", err)}
+		for req := range requestChan {
+
+			bytes, err := req.work(ws, req.command)
+
+			req.resp <- response{response: bytes, err: err}
 		}
-		req.resp <- response{response: bytes, err: nil}
-	}
+	}(vs.requestChan)
 }
 
 //openWebsocket .
@@ -108,7 +107,7 @@ func (vs *AtlonaVideoSwitcher5x1) GetInputByOutput(ctx context.Context, output s
 		}
 	}`
 
-	req := request{command: body, resp: make(chan response)}
+	req := request{command: body, work: GetInputByOutputWS, resp: make(chan response)}
 
 	vs.requestChan <- req
 
@@ -126,6 +125,21 @@ func (vs *AtlonaVideoSwitcher5x1) GetInputByOutput(ctx context.Context, output s
 	}
 
 	return roomInfo.Result.AVSettings.Source[6:], nil
+}
+
+func GetInputByOutputWS(ws *websocket.Conn, body string) ([]byte, error) {
+
+	err := ws.WriteMessage(websocket.TextMessage, []byte(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to write message: %s", err.Error())
+	}
+
+	_, bytes, err := ws.ReadMessage()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read message: %s", err)
+	}
+	return bytes, nil
+
 }
 
 //SetInputByOutput .
@@ -153,7 +167,7 @@ func (vs *AtlonaVideoSwitcher5x1) SetInputByOutput(ctx context.Context, output, 
 		}
 	  }`, input)
 
-	req := request{command: body, resp: make(chan response)}
+	req := request{command: body, work: SetInputByOutput, resp: make(chan response)}
 
 	vs.requestChan <- req
 
@@ -170,6 +184,17 @@ func (vs *AtlonaVideoSwitcher5x1) SetInputByOutput(ctx context.Context, output, 
 	// }
 
 	return nil
+}
+
+func SetInputByOutput(ws *websocket.Conn, body string) ([]byte, error) {
+
+	err := ws.WriteMessage(websocket.TextMessage, []byte(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to write message: %s", err.Error())
+	}
+
+	return nil, nil
+
 }
 
 //SetVolumeByBlock .
@@ -194,7 +219,7 @@ func (vs *AtlonaVideoSwitcher5x1) SetVolumeByBlock(ctx context.Context, output s
 		}
 	  }`, level)
 
-	req := request{command: body, resp: make(chan response)}
+	req := request{command: body, work: SetVolumeByBlockWS, resp: make(chan response)}
 
 	vs.requestChan <- req
 
@@ -206,6 +231,17 @@ func (vs *AtlonaVideoSwitcher5x1) SetVolumeByBlock(ctx context.Context, output s
 	}
 
 	return nil
+}
+
+func SetVolumeByBlockWS(ws *websocket.Conn, body string) ([]byte, error) {
+
+	err := ws.WriteMessage(websocket.TextMessage, []byte(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to write message: %s", err.Error())
+	}
+
+	return nil, nil
+
 }
 
 //GetVolumeByBlock .
@@ -224,7 +260,7 @@ func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output s
 		}
 	}`
 
-	req := request{command: body, resp: make(chan response)}
+	req := request{command: body, work: SetVolumeByBlockWS, resp: make(chan response)}
 
 	vs.requestChan <- req
 
@@ -257,6 +293,21 @@ func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output s
 	}
 }
 
+func GetVolumeByBlockWS(ws *websocket.Conn, body string) ([]byte, error) {
+
+	err := ws.WriteMessage(websocket.TextMessage, []byte(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to write message: %s", err.Error())
+	}
+
+	_, bytes, err := ws.ReadMessage()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read message: %s", err)
+	}
+	return bytes, nil
+
+}
+
 //GetMutedByBlock .
 func (vs *AtlonaVideoSwitcher5x1) GetMutedByBlock(ctx context.Context, output string) (bool, error) {
 	vs.once.Do(vs.runRequestManager)
@@ -273,7 +324,7 @@ func (vs *AtlonaVideoSwitcher5x1) GetMutedByBlock(ctx context.Context, output st
 		}
 	}`
 
-	req := request{command: body, resp: make(chan response)}
+	req := request{command: body, work: GetMutedByBlockWS, resp: make(chan response)}
 
 	vs.requestChan <- req
 
@@ -313,6 +364,21 @@ func (vs *AtlonaVideoSwitcher5x1) GetMutedByBlock(ctx context.Context, output st
 	}
 }
 
+func GetMutedByBlockWS(ws *websocket.Conn, body string) ([]byte, error) {
+
+	err := ws.WriteMessage(websocket.TextMessage, []byte(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to write message: %s", err.Error())
+	}
+
+	_, bytes, err := ws.ReadMessage()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read message: %s", err)
+	}
+	return bytes, nil
+
+}
+
 //SetMutedByBlock .
 func (vs *AtlonaVideoSwitcher5x1) SetMutedByBlock(ctx context.Context, output string, muted bool) error {
 	vs.once.Do(vs.runRequestManager)
@@ -345,7 +411,7 @@ func (vs *AtlonaVideoSwitcher5x1) SetMutedByBlock(ctx context.Context, output st
 		}
 	  }`, audioBlock)
 
-	req := request{command: body, resp: make(chan response)}
+	req := request{command: body, work: SetMutedByBlockWS, resp: make(chan response)}
 
 	vs.requestChan <- req
 
@@ -357,6 +423,17 @@ func (vs *AtlonaVideoSwitcher5x1) SetMutedByBlock(ctx context.Context, output st
 	}
 
 	return nil
+
+}
+
+func SetMutedByBlockWS(ws *websocket.Conn, body string) ([]byte, error) {
+
+	err := ws.WriteMessage(websocket.TextMessage, []byte(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to write message: %s", err.Error())
+	}
+
+	return nil, nil
 
 }
 
