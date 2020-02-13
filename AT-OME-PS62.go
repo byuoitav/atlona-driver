@@ -211,11 +211,10 @@ func (vs *AtlonaVideoSwitcher6x2) SetInputByOutput(ctx context.Context, output, 
 }
 
 //SetVolumeByBlock .
-func (vs *AtlonaVideoSwitcher6x2) SetVolumeByBlock(ctx context.Context, output string, volumeLevel uint) error {
+func (vs *AtlonaVideoSwitcher6x2) SetVolumeByBlock(ctx context.Context, output string, level int) error {
 	//Atlona volume levels are from -90 to 10 and the number we recieve is 0-100
 	//if volume level is supposed to be zero set it to zero (which is -90) on atlona
 
-	level := int(volumeLevel)
 	if level == 0 {
 		level = -90
 	} else {
@@ -247,7 +246,7 @@ func (vs *AtlonaVideoSwitcher6x2) SetVolumeByBlock(ctx context.Context, output s
 }
 
 //GetVolumeByBlock .
-func (vs *AtlonaVideoSwitcher6x2) GetVolumeByBlock(ctx context.Context, output string) (uint, error) {
+func (vs *AtlonaVideoSwitcher6x2) GetVolumeByBlock(ctx context.Context, output string) (int, error) {
 	var resp atlonaAudio
 	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
 	requestBody := fmt.Sprintf(`
@@ -273,11 +272,11 @@ func (vs *AtlonaVideoSwitcher6x2) GetVolumeByBlock(ctx context.Context, output s
 			return 0, nil
 		} else {
 			volume := ((resp.Audio.AudOut.ZoneOut1.AudioVol + 40) * 2)
-			return uint(volume), nil
+			return volume, nil
 		}
 
 	} else if output == "2" {
-		return uint(resp.Audio.AudOut.ZoneOut2.AudioVol + 90), nil
+		return resp.Audio.AudOut.ZoneOut2.AudioVol + 90, nil
 	} else {
 		return 0, fmt.Errorf("Invalid Output. Valid Output names are 1 and 2 you gave us %s", output)
 	}

@@ -198,10 +198,9 @@ func SetInputByOutput(ws *websocket.Conn, body string) ([]byte, error) {
 }
 
 //SetVolumeByBlock .
-func (vs *AtlonaVideoSwitcher5x1) SetVolumeByBlock(ctx context.Context, output string, volumeLevel uint) error {
+func (vs *AtlonaVideoSwitcher5x1) SetVolumeByBlock(ctx context.Context, output string, level int) error {
 	vs.once.Do(vs.runRequestManager)
 
-	level := int(volumeLevel)
 	if level == 0 {
 		level = -80
 	} else {
@@ -246,7 +245,7 @@ func SetVolumeByBlockWS(ws *websocket.Conn, body string) ([]byte, error) {
 }
 
 //GetVolumeByBlock .
-func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output string) (uint, error) {
+func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output string) (int, error) {
 	vs.once.Do(vs.runRequestManager)
 
 	var roomInfo room
@@ -290,7 +289,7 @@ func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output s
 		if volume%2 != 0 {
 			volume = volume + 1
 		}
-		return uint(volume), nil
+		return volume, nil
 	}
 }
 
