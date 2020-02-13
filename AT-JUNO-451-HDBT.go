@@ -206,7 +206,7 @@ func (vs *AtlonaVideoSwitcher4x1) GetInfo(ctx context.Context) (interface{}, err
 	return info, fmt.Errorf("not currently implemented")
 }
 
-func (vs *AtlonaVideoSwitcher4x1) SetVolumeByBlock(ctx context.Context, block string, volume int) error {
+func (vs *AtlonaVideoSwitcher4x1) SetVolumeByBlock(ctx context.Context, block string, volume uint) error {
 	return fmt.Errorf("this function is not available for this device type")
 }
 
@@ -214,7 +214,7 @@ func (vs *AtlonaVideoSwitcher4x1) SetMutedByBlock(ctx context.Context, block str
 	return fmt.Errorf("this function is not available for this device type")
 }
 
-func (vs *AtlonaVideoSwitcher4x1) GetVolumeByBlock(ctx context.Context, block string) (int, error) {
+func (vs *AtlonaVideoSwitcher4x1) GetVolumeByBlock(ctx context.Context, block string) (uint, error) {
 	return 0, fmt.Errorf("this function is not available for this device type")
 }
 
