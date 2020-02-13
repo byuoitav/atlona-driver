@@ -260,7 +260,7 @@ func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output s
 		}
 	}`
 
-	req := request{command: body, work: SetVolumeByBlockWS, resp: make(chan response)}
+	req := request{command: body, work: GetVolumeByBlockWS, resp: make(chan response)}
 
 	vs.requestChan <- req
 
