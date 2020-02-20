@@ -56,10 +56,9 @@ func CreateVideoSwitcher(ctx context.Context, addr, username, password string) (
 		return Atlonavs, nil
 	case "AT-UHD-SW-52ED":
 		Atlonavs := &AtlonaVideoSwitcher5x1{
-			Username:    username,
-			Password:    password,
-			Address:     addr,
-			requestChan: make(chan request),
+			Username: username,
+			Password: password,
+			Address:  addr,
 		}
 		return Atlonavs, nil
 	case "AT-JUNO-451-HDBT":
