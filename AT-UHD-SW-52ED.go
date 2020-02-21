@@ -59,6 +59,10 @@ func createConnectionFunc(address string) wspool.NewConnectionFunc {
 	}
 }
 
+func (vs *AtlonaVideoSwitcher5x1) SetLogger(logger wspool.Logger) {
+	vs.pool.Logger = logger
+}
+
 //GetInputByOutput .
 func (vs *AtlonaVideoSwitcher5x1) GetInputByOutput(ctx context.Context, output string) (string, error) {
 	vs.once.Do(vs.createPool)

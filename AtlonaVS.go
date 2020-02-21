@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/byuoitav/wspool"
 )
 
 type DeviceType int
@@ -22,6 +24,7 @@ type AtlonaVideoSwitcher interface {
 	GetMutedByBlock(ctx context.Context, block string) (bool, error)
 
 	GetInfo(ctx context.Context) (interface{}, error)
+	SetLogger(wspool.Logger)
 }
 
 func CreateVideoSwitcher(ctx context.Context, addr, username, password string) (AtlonaVideoSwitcher, error) {

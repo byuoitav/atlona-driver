@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/byuoitav/common/structs"
+	"github.com/byuoitav/wspool"
 )
 
 type AtlonaVideoSwitcher2x1 struct {
@@ -107,4 +108,8 @@ func (vs *AtlonaVideoSwitcher2x1) GetVolumeByBlock(ctx context.Context, block st
 
 func (vs *AtlonaVideoSwitcher2x1) GetMutedByBlock(ctx context.Context, block string) (bool, error) {
 	return false, fmt.Errorf("this function is not available for this device type")
+}
+
+func (vs *AtlonaVideoSwitcher2x1) SetLogger(logger wspool.Logger) {
+
 }

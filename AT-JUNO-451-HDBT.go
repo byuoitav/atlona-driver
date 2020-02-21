@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/byuoitav/common/structs"
+	"github.com/byuoitav/wspool"
 )
 
 const (
@@ -220,4 +221,8 @@ func (vs *AtlonaVideoSwitcher4x1) GetVolumeByBlock(ctx context.Context, block st
 
 func (vs *AtlonaVideoSwitcher4x1) GetMutedByBlock(ctx context.Context, block string) (bool, error) {
 	return false, fmt.Errorf("this function is not available for this device type")
+}
+
+func (vs *AtlonaVideoSwitcher4x1) SetLogger(logger wspool.Logger) {
+
 }
