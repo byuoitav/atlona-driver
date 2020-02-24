@@ -20,6 +20,7 @@ type AtlonaVideoSwitcher5x1 struct {
 	Address  string
 	once     sync.Once
 	pool     wspool.Pool
+	Logger   wspool.Logger
 }
 
 type room struct {
@@ -38,11 +39,17 @@ type room struct {
 }
 
 func (vs *AtlonaVideoSwitcher5x1) createPool() {
+	if vs.Logger != nil {
+		vs.Logger.Infof("creating pool")
+	}
+
 	vs.pool = wspool.Pool{
 		NewConnection: createConnectionFunc(vs.Address),
-		TTL:           60 * time.Second,
-		Delay:         15 * time.Second,
+		TTL:           3 * time.Second,
+		Delay:         100 * time.Millisecond,
+		Logger:        vs.Logger,
 	}
+
 }
 
 func createConnectionFunc(address string) wspool.NewConnectionFunc {
@@ -57,10 +64,6 @@ func createConnectionFunc(address string) wspool.NewConnectionFunc {
 		}
 		return ws, nil
 	}
-}
-
-func (vs *AtlonaVideoSwitcher5x1) SetLogger(logger wspool.Logger) {
-	vs.pool.Logger = logger
 }
 
 //GetInputByOutput .
@@ -87,12 +90,16 @@ func (vs *AtlonaVideoSwitcher5x1) GetInputByOutput(ctx context.Context, output s
 			return fmt.Errorf("failed to write message: %s", err.Error())
 		}
 
+		if vs.Logger != nil {
+			vs.Logger.Infof("reading message from websocket")
+		}
 		_, bytes, err = ws.ReadMessage()
 		if err != nil {
 			return fmt.Errorf("failed to read message: %s", err)
 		}
 		return nil
 	})
+
 	if err != nil {
 		return "", fmt.Errorf("failed to read message from channel: %s", err.Error())
 	}
@@ -131,6 +138,11 @@ func (vs *AtlonaVideoSwitcher5x1) SetInputByOutput(ctx context.Context, output, 
 			  }
 			}
 		  }`, input)
+
+		if vs.Logger != nil {
+			vs.Logger.Infof("writing message")
+		}
+
 		err := ws.WriteMessage(websocket.TextMessage, []byte(body))
 		if err != nil {
 			return fmt.Errorf("failed to write message: %s", err.Error())
@@ -138,6 +150,7 @@ func (vs *AtlonaVideoSwitcher5x1) SetInputByOutput(ctx context.Context, output, 
 
 		return nil
 	})
+
 	if err != nil {
 		return fmt.Errorf("failed to read message from channel: %s", err.Error())
 	}

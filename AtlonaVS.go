@@ -7,8 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
-
-	"github.com/byuoitav/wspool"
+	"time"
 )
 
 type DeviceType int
@@ -24,26 +23,36 @@ type AtlonaVideoSwitcher interface {
 	GetMutedByBlock(ctx context.Context, block string) (bool, error)
 
 	GetInfo(ctx context.Context) (interface{}, error)
-	SetLogger(wspool.Logger)
 }
 
 func CreateVideoSwitcher(ctx context.Context, addr, username, password string) (AtlonaVideoSwitcher, error) {
-
 	url := fmt.Sprintf("http://%s/", addr)
 
-	req, _ := http.NewRequest("GET", url, nil)
+	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	defer cancel()
 
-	res, err := http.DefaultClient.Do(req)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Error: %w", err)
+		return nil, fmt.Errorf("unable to build request: %w", err)
 	}
-	defer res.Body.Close()
-	body, _ := ioutil.ReadAll(res.Body)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("unable to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read response: %w", err)
+	}
+
 	//regex black magic
 	reg, err := regexp.Compile("<title[^>]*>([^<]+)</title>")
 	if err != nil {
 		return nil, fmt.Errorf("Error: %w", err)
 	}
+
 	regexType := reg.FindAllStringSubmatch(fmt.Sprintf("%s", body), -1)
 	deviceType := regexType[0][1]
 	deviceType = strings.Replace(deviceType, "Login", "", -1)
@@ -62,6 +71,7 @@ func CreateVideoSwitcher(ctx context.Context, addr, username, password string) (
 			Username: username,
 			Password: password,
 			Address:  addr,
+			Logger:   Log,
 		}
 		return Atlonavs, nil
 	case "AT-JUNO-451-HDBT":

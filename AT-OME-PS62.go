@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/byuoitav/common/structs"
-	"github.com/byuoitav/wspool"
 )
 
 type AtlonaVideoSwitcher6x2 struct {
@@ -407,8 +406,4 @@ func (vs *AtlonaVideoSwitcher6x2) GetHardwareInfo(ctx context.Context) (structs.
 func (vs *AtlonaVideoSwitcher6x2) GetInfo(ctx context.Context) (interface{}, error) {
 	var info interface{}
 	return info, fmt.Errorf("not currently implemented")
-}
-
-func (vs *AtlonaVideoSwitcher6x2) SetLogger(logger wspool.Logger) {
-
 }
