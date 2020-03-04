@@ -45,8 +45,8 @@ func (vs *AtlonaVideoSwitcher5x1) createPool() {
 
 	vs.pool = wspool.Pool{
 		NewConnection: createConnectionFunc(vs.Address),
-		TTL:           3 * time.Second,
-		Delay:         100 * time.Millisecond,
+		TTL:           10 * time.Second,
+		Delay:         75 * time.Millisecond,
 		Logger:        vs.Logger,
 	}
 
@@ -55,7 +55,7 @@ func (vs *AtlonaVideoSwitcher5x1) createPool() {
 func createConnectionFunc(address string) wspool.NewConnectionFunc {
 	return func(ctx context.Context) (*websocket.Conn, error) {
 		dialer := &websocket.Dialer{}
-		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 		defer cancel()
 
 		ws, _, err := dialer.DialContext(ctx, fmt.Sprintf("ws://%s:543", address), nil)
