@@ -85,6 +85,8 @@ func (vs *AtlonaVideoSwitcher5x1) GetInputByOutput(ctx context.Context, output s
 			}
 		}`
 
+		vs.pool.Logger.Infof("writing message to Get Input")
+
 		err := ws.WriteMessage(websocket.TextMessage, []byte(body))
 		if err != nil {
 			return fmt.Errorf("failed to write message: %s", err.Error())
@@ -97,6 +99,9 @@ func (vs *AtlonaVideoSwitcher5x1) GetInputByOutput(ctx context.Context, output s
 		if err != nil {
 			return fmt.Errorf("failed to read message: %s", err)
 		}
+
+		vs.pool.Logger.Infof("read message from Get Input")
+
 		return nil
 	})
 
@@ -143,10 +148,14 @@ func (vs *AtlonaVideoSwitcher5x1) SetInputByOutput(ctx context.Context, output, 
 			vs.Logger.Infof("writing message")
 		}
 
+		vs.pool.Logger.Infof("writing message to Set Input")
+
 		err := ws.WriteMessage(websocket.TextMessage, []byte(body))
 		if err != nil {
 			return fmt.Errorf("failed to write message: %s", err.Error())
 		}
+
+		vs.pool.Logger.Infof("successful wrote message to set Input")
 
 		return nil
 	})
@@ -184,10 +193,15 @@ func (vs *AtlonaVideoSwitcher5x1) SetVolumeByBlock(ctx context.Context, output s
 			  }
 			}
 		  }`, level)
+
+		vs.pool.Logger.Infof("writing message to Set Volume")
+
 		err := ws.WriteMessage(websocket.TextMessage, []byte(body))
 		if err != nil {
 			return fmt.Errorf("failed to write message: %s", err.Error())
 		}
+
+		vs.pool.Logger.Infof("successfully wrote to Set Volume")
 
 		return nil
 	})
@@ -221,6 +235,8 @@ func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output s
 			}
 		}`
 
+		vs.pool.Logger.Infof("writing message to Get Volume")
+
 		err := ws.WriteMessage(websocket.TextMessage, []byte(body))
 		if err != nil {
 			return fmt.Errorf("failed to write message: %s", err.Error())
@@ -230,6 +246,8 @@ func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output s
 		if err != nil {
 			return fmt.Errorf("failed to read message: %s", err)
 		}
+
+		vs.pool.Logger.Infof("read message from Get volume")
 
 		return nil
 	})
@@ -278,6 +296,8 @@ func (vs *AtlonaVideoSwitcher5x1) GetMutedByBlock(ctx context.Context, output st
 			}
 		}`
 
+		vs.pool.Logger.Infof("writing message to Get Muted")
+
 		err := ws.WriteMessage(websocket.TextMessage, []byte(body))
 		if err != nil {
 			return fmt.Errorf("failed to write message: %s", err.Error())
@@ -287,6 +307,8 @@ func (vs *AtlonaVideoSwitcher5x1) GetMutedByBlock(ctx context.Context, output st
 		if err != nil {
 			return fmt.Errorf("failed to read message: %s", err)
 		}
+
+		vs.pool.Logger.Infof("read message from Get Muted")
 
 		return nil
 	})
@@ -355,10 +377,15 @@ func (vs *AtlonaVideoSwitcher5x1) SetMutedByBlock(ctx context.Context, output st
 			  }
 			}
 		  }`, audioBlock)
+
+		vs.pool.Logger.Infof("writing message to set Muted")
+
 		err := ws.WriteMessage(websocket.TextMessage, []byte(body))
 		if err != nil {
 			return fmt.Errorf("failed to write message: %s", err.Error())
 		}
+
+		vs.pool.Logger.Infof("wrote message to set Muted")
 
 		return nil
 	})

@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/byuoitav/wspool"
 )
 
 type DeviceType int
@@ -25,7 +27,7 @@ type AtlonaVideoSwitcher interface {
 	GetInfo(ctx context.Context) (interface{}, error)
 }
 
-func CreateVideoSwitcher(ctx context.Context, addr, username, password string) (AtlonaVideoSwitcher, error) {
+func CreateVideoSwitcher(ctx context.Context, addr, username, password string, log wspool.Logger) (AtlonaVideoSwitcher, error) {
 	url := fmt.Sprintf("http://%s/", addr)
 
 	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
@@ -71,7 +73,7 @@ func CreateVideoSwitcher(ctx context.Context, addr, username, password string) (
 			Username: username,
 			Password: password,
 			Address:  addr,
-			Logger:   Log,
+			Logger:   log,
 		}
 		return Atlonavs, nil
 	case "AT-JUNO-451-HDBT":
