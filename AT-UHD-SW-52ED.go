@@ -95,8 +95,18 @@ func (vs *AtlonaVideoSwitcher5x1) GetInputByOutput(ctx context.Context, output s
 		if vs.Logger != nil {
 			vs.Logger.Infof("reading message from websocket")
 		}
+
+		timeout := time.Now()
+		timeout = timeout.Add(time.Second * 5)
+
+		err = ws.SetReadDeadline(timeout)
+		if err != nil {
+			return fmt.Errorf("failed to set readDeadline: %s", err)
+		}
+
 		_, bytes, err = ws.ReadMessage()
 		if err != nil {
+			vs.Logger.Errorf("failed reading message from websocket: %s", err)
 			return fmt.Errorf("failed to read message: %s", err)
 		}
 
@@ -242,8 +252,17 @@ func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output s
 			return fmt.Errorf("failed to write message: %s", err.Error())
 		}
 
+		timeout := time.Now()
+		timeout = timeout.Add(time.Second * 5)
+
+		err = ws.SetReadDeadline(timeout)
+		if err != nil {
+			return fmt.Errorf("failed to set readDeadline: %s", err)
+		}
+
 		_, bytes, err = ws.ReadMessage()
 		if err != nil {
+			vs.Logger.Errorf("failed reading message from websocket: %s", err)
 			return fmt.Errorf("failed to read message: %s", err)
 		}
 
@@ -303,8 +322,17 @@ func (vs *AtlonaVideoSwitcher5x1) GetMutedByBlock(ctx context.Context, output st
 			return fmt.Errorf("failed to write message: %s", err.Error())
 		}
 
+		timeout := time.Now()
+		timeout = timeout.Add(time.Second * 5)
+
+		err = ws.SetReadDeadline(timeout)
+		if err != nil {
+			return fmt.Errorf("failed to set readDeadline: %s", err)
+		}
+
 		_, bytes, err = ws.ReadMessage()
 		if err != nil {
+			vs.Logger.Errorf("failed reading message from websocket: %s", err)
 			return fmt.Errorf("failed to read message: %s", err)
 		}
 
