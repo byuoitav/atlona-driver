@@ -2,6 +2,7 @@ package atlona
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -13,12 +14,27 @@ type Amp60 struct {
 	Address string
 }
 
+// AmpStatus represents the current amp status
+type AmpStatus struct {
+	Model         string `json:"101"`
+	Firmware      string `json:"102"`
+	MACAddress    string `json:"103"`
+	SerialNumber  string `json:"104"`
+	OperatingTime string `json:"105"`
+}
+
+// AmpAudio represents an audio response from an Atlona 60 watt amp
+type AmpAudio struct {
+	Volume int `json:"608,omitempty"`
+	Muted  int `json:"609,omitempty"`
+}
+
 func getR() string {
 	return fmt.Sprintf("%v", rand.Float32())
 }
 
 func getURL(address, endpoint string) string {
-	return "http://" + address + "/action=" + endpoint + getR()
+	return "http://" + address + "/action=" + endpoint + "&" + getR()
 }
 
 func (a *Amp60) sendReq(ctx context.Context, endpoint string) ([]byte, error) {
@@ -34,24 +50,54 @@ func (a *Amp60) sendReq(ctx context.Context, endpoint string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	toReturn, err = ioutil.ReadAll(resp.Body)
-	return nil, nil
+	if err != nil {
+		return toReturn, fmt.Errorf("unable to read resp body: %w", err)
+	}
+	return toReturn, nil
 }
 
 // GetInfo gets the current amp status
 func (a *Amp60) GetInfo(ctx context.Context) (interface{}, error) {
-	// open a connection with the dsp, return some info about the device...
-	return nil, nil
+	resp, err := a.sendReq(ctx, "devicestatus_get")
+	if err != nil {
+		return nil, fmt.Errorf("unable to get info: %w", err)
+	}
+	var info AmpStatus
+	err = json.Unmarshal(resp, &info)
+	if err != nil {
+		return nil, fmt.Errorf("unable to unmarshal into AmpStatus: %w", err)
+	}
+	return info, nil
 }
 
 // GetVolumeByBlock gets the current volume
 func (a *Amp60) GetVolumeByBlock(ctx context.Context, block string) (int, error) {
-	// open a connection with the dsp, return the volume for on block...
-	return 0, nil
+	resp, err := a.sendReq(ctx, "deviceaudio_get")
+	if err != nil {
+		return -1, fmt.Errorf("unable to get volume: %w", err)
+	}
+	var info AmpAudio
+	err = json.Unmarshal(resp, &info)
+	if err != nil {
+		return -1, fmt.Errorf("unable to unmarshal into AmpVolume: %w", err)
+	}
+	return info.Volume, nil
 }
 
 // GetMutedByBlock gets the current muted status
 func (a *Amp60) GetMutedByBlock(ctx context.Context, block string) (bool, error) {
-	// open a connection with the dsp, return the muted status for block...
+	resp, err := a.sendReq(ctx, "deviceaudio_get")
+	if err != nil {
+		return false, fmt.Errorf("unable to get volume: %w", err)
+	}
+	var info AmpAudio
+	err = json.Unmarshal(resp, &info)
+	if err != nil {
+		return false, fmt.Errorf("unable to unmarshal into AmpVolume: %w", err)
+	}
+	if info.Muted == 1 {
+		return true, nil
+	}
 	return false, nil
 }
 
