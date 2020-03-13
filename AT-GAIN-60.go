@@ -103,12 +103,23 @@ func (a *Amp60) GetMutedByBlock(ctx context.Context, block string) (bool, error)
 
 // SetVolumeByBlock sets the volume on the amp
 func (a *Amp60) SetVolumeByBlock(ctx context.Context, block string, volume int) error {
-	// open a connection with the dsp, set the volume on block...
+	_, err := a.sendReq(ctx, fmt.Sprintf("deviceaudio_set&608=%v", volume))
+	if err != nil {
+		return fmt.Errorf("unable to set volume: %w", err)
+	}
 	return nil
 }
 
 // SetMutedByBlock sets the current muted status on the amp
 func (a *Amp60) SetMutedByBlock(ctx context.Context, block string, muted bool) error {
 	// open a connection with the dsp, set the muted status on block...
+	mutedInt := 0
+	if muted {
+		mutedInt = 1
+	}
+	_, err := a.sendReq(ctx, fmt.Sprintf("deviceaudio_set&609=%v", mutedInt))
+	if err != nil {
+		return fmt.Errorf("unable to set volume: %w", err)
+	}
 	return nil
 }
