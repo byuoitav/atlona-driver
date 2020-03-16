@@ -7,7 +7,9 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 )
 
 // Amp60 represents an Atlona 60 watt amplifier
@@ -35,19 +37,27 @@ func getR() string {
 }
 
 func getURL(address, endpoint string) string {
-	return "http://" + address + "/action=" + endpoint + "&" + getR()
+	return "http://" + address + "/action=" + endpoint + "&r=" + getR()
 }
 
 func (a *Amp60) sendReq(ctx context.Context, endpoint string) ([]byte, error) {
 	var toReturn []byte
-	url := getURL(a.Address, endpoint)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	ampUrl := getURL(a.Address, endpoint)
+	req, err := http.NewRequestWithContext(ctx, "GET", ampUrl, nil)
 	if err != nil {
 		return toReturn, fmt.Errorf("unable to make new http request: %w", err)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return toReturn, fmt.Errorf("unable to perform request: %w", err)
+		if nerr, ok := err.(*url.Error); ok {
+			fmt.Printf("%v\n", nerr.Err)
+			if !strings.Contains(nerr.Err.Error(), "malformed") {
+				return toReturn, fmt.Errorf("unable to perform request: %w", err)
+			}
+		} else {
+			return toReturn, fmt.Errorf("unable to perform request: %w", err)
+		}
+		return toReturn, nil
 	}
 	defer resp.Body.Close()
 	toReturn, err = ioutil.ReadAll(resp.Body)
@@ -82,11 +92,7 @@ func (a *Amp60) GetVolumeByBlock(ctx context.Context, block string) (int, error)
 	if err != nil {
 		return -1, fmt.Errorf("unable to unmarshal into AmpVolume in GetVolume: %w", err)
 	}
-	volume, err := strconv.Atoi(info.Volume)
-	if err != nil {
-		return -1, fmt.Errorf("unable to convert volume response to int: %w", err)
-	}
-	return volume, nil
+	return strconv.Atoi(info.Volume)
 }
 
 // GetMutedByBlock gets the current muted status
