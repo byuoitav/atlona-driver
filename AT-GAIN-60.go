@@ -90,7 +90,7 @@ func (a *Amp60) GetVolumeByBlock(ctx context.Context, block string) (int, error)
 	var info AmpAudio
 	err = json.Unmarshal(resp, &info)
 	if err != nil {
-		return -1, fmt.Errorf("unable to unmarshal into AmpVolume: %w", err)
+		return -1, fmt.Errorf("unable to unmarshal into AmpVolume in GetVolume: %w", err)
 	}
 	return strconv.Atoi(info.Volume)
 }
@@ -99,12 +99,12 @@ func (a *Amp60) GetVolumeByBlock(ctx context.Context, block string) (int, error)
 func (a *Amp60) GetMutedByBlock(ctx context.Context, block string) (bool, error) {
 	resp, err := a.sendReq(ctx, "deviceaudio_get")
 	if err != nil {
-		return false, fmt.Errorf("unable to get volume: %w", err)
+		return false, fmt.Errorf("unable to get muted: %w", err)
 	}
 	var info AmpAudio
 	err = json.Unmarshal(resp, &info)
 	if err != nil {
-		return false, fmt.Errorf("unable to unmarshal into AmpVolume: %w", err)
+		return false, fmt.Errorf("unable to unmarshal into AmpVolume in GetMuted: %w", err)
 	}
 	if info.Muted == "1" {
 		return true, nil
@@ -124,13 +124,13 @@ func (a *Amp60) SetVolumeByBlock(ctx context.Context, block string, volume int) 
 // SetMutedByBlock sets the current muted status on the amp
 func (a *Amp60) SetMutedByBlock(ctx context.Context, block string, muted bool) error {
 	// open a connection with the dsp, set the muted status on block...
-	mutedInt := 0
+	mutedString := "0"
 	if muted {
-		mutedInt = 1
+		mutedString = "1"
 	}
-	_, err := a.sendReq(ctx, fmt.Sprintf("deviceaudio_set&609=%v", mutedInt))
+	_, err := a.sendReq(ctx, fmt.Sprintf("deviceaudio_set&609=%v", mutedString))
 	if err != nil {
-		return fmt.Errorf("unable to set volume: %w", err)
+		return fmt.Errorf("unable to set muted: %w", err)
 	}
 	return nil
 }
