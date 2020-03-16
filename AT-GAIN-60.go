@@ -7,6 +7,9 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 )
 
 // Amp60 represents an Atlona 60 watt amplifier
@@ -25,8 +28,8 @@ type AmpStatus struct {
 
 // AmpAudio represents an audio response from an Atlona 60 watt amp
 type AmpAudio struct {
-	Volume int `json:"608,omitempty"`
-	Muted  int `json:"609,omitempty"`
+	Volume string `json:"608,omitempty"`
+	Muted  string `json:"609,omitempty"`
 }
 
 func getR() string {
@@ -34,19 +37,27 @@ func getR() string {
 }
 
 func getURL(address, endpoint string) string {
-	return "http://" + address + "/action=" + endpoint + "&" + getR()
+	return "http://" + address + "/action=" + endpoint + "&r=" + getR()
 }
 
 func (a *Amp60) sendReq(ctx context.Context, endpoint string) ([]byte, error) {
 	var toReturn []byte
-	url := getURL(a.Address, endpoint)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	ampUrl := getURL(a.Address, endpoint)
+	req, err := http.NewRequestWithContext(ctx, "GET", ampUrl, nil)
 	if err != nil {
 		return toReturn, fmt.Errorf("unable to make new http request: %w", err)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return toReturn, fmt.Errorf("unable to perform request: %w", err)
+		if nerr, ok := err.(*url.Error); ok {
+			fmt.Printf("%v\n", nerr.Err)
+			if !strings.Contains(nerr.Err.Error(), "malformed") {
+				return toReturn, fmt.Errorf("unable to perform request: %w", err)
+			}
+		} else {
+			return toReturn, fmt.Errorf("unable to perform request: %w", err)
+		}
+		return toReturn, nil
 	}
 	defer resp.Body.Close()
 	toReturn, err = ioutil.ReadAll(resp.Body)
@@ -81,7 +92,7 @@ func (a *Amp60) GetVolumeByBlock(ctx context.Context, block string) (int, error)
 	if err != nil {
 		return -1, fmt.Errorf("unable to unmarshal into AmpVolume: %w", err)
 	}
-	return info.Volume, nil
+	return strconv.Atoi(info.Volume)
 }
 
 // GetMutedByBlock gets the current muted status
@@ -95,7 +106,7 @@ func (a *Amp60) GetMutedByBlock(ctx context.Context, block string) (bool, error)
 	if err != nil {
 		return false, fmt.Errorf("unable to unmarshal into AmpVolume: %w", err)
 	}
-	if info.Muted == 1 {
+	if info.Muted == "1" {
 		return true, nil
 	}
 	return false, nil
