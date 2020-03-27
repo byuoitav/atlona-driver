@@ -63,7 +63,7 @@ func (a *Amp60) sendReq(ctx context.Context, endpoint string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	toReturn, err = ioutil.ReadAll(resp.Body)
-	log.L.Debugf("Repsonse: %v\n", resp)
+	log.L.Infof("Repsonse: %v\n", resp)
 
 	if err != nil {
 		return toReturn, fmt.Errorf("unable to read resp body: %w", err)
