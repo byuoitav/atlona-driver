@@ -4,7 +4,7 @@ require (
 	github.com/byuoitav/atlona-switcher-microservice v0.0.0-20191126173619-b128fd301655
 	github.com/byuoitav/common v0.0.0-20191009134525-e6882d6c07f5
 	github.com/byuoitav/endpoint-authorization-controller v0.0.0-20190306172901-dd51e868d6df // indirect
-	github.com/byuoitav/wspool v0.0.2
+	github.com/byuoitav/wspool v0.1.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/go-cas/cas v2.1.0+incompatible // indirect
