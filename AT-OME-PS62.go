@@ -29,6 +29,9 @@ type atlonaVideo struct {
 				HdmiOutB struct {
 					VideoSrc int `json:"videoSrc"`
 				} `json:"hdmiOutB"`
+				Mirror struct {
+					VideoSrc int `json:"videoSrc"`
+				}
 			} `json:"hdmiOut"`
 		} `json:"vidOut"`
 	} `json:"video"`
@@ -141,15 +144,18 @@ func (vs *AtlonaVideoSwitcher6x2) GetInputByOutput(ctx context.Context, output s
 			}
 		}
 	}`)
+
 	body, gerr := vs.make6x2request(ctx, url, requestBody)
 	if gerr != nil {
 		return "", fmt.Errorf("An error occured while making the call: %w", gerr)
 	}
+
 	err := json.Unmarshal([]byte(body), &resp)
 	if err != nil {
 		fmt.Printf("%s/n", body)
 		return "", fmt.Errorf("error when unmarshalling the response: %w", err)
 	}
+
 	//Get the inputsrc for the requested output
 	input := ""
 	if output == "1" {
@@ -157,8 +163,9 @@ func (vs *AtlonaVideoSwitcher6x2) GetInputByOutput(ctx context.Context, output s
 	} else if output == "2" {
 		input = strconv.Itoa(resp.Video.VidOut.HdmiOut.HdmiOutB.VideoSrc)
 	} else {
-		return input, fmt.Errorf("Invalid Output. Valid Output names are 1 and 2 you gave us %s", output)
+		input = strconv.Itoa(resp.Video.VidOut.HdmiOut.Mirror.VideoSrc)
 	}
+
 	return input, nil
 }
 
@@ -201,8 +208,11 @@ func (vs *AtlonaVideoSwitcher6x2) SetInputByOutput(ctx context.Context, output, 
 			}
 		}`, in)
 	} else {
-		return fmt.Errorf("Invalid Output. Valid Output names are 1 and 2")
+		requestBody = fmt.Sprintf(`
+		{"setConfig":{"video":{"vidOut":{"hdmiOut":{"mirror":{"videoSrc":%v}}}}}}
+		`, in)
 	}
+
 	_, gerr := vs.make6x2request(ctx, url, requestBody)
 	if gerr != nil {
 		return fmt.Errorf("An error occured while making the call: %w", gerr)
