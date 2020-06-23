@@ -76,7 +76,7 @@ func CreateVideoSwitcher(ctx context.Context, addr, username, password string, l
 			Logger:   log,
 		}
 		return Atlonavs, nil
-	case "AT-JUNO-451-HDBT":
+	case "AT-JUNO-451-HDBT", "AT-JUNO-451":
 		Atlonavs := &AtlonaVideoSwitcher4x1{
 			Username: username,
 			Password: password,
@@ -91,6 +91,6 @@ func CreateVideoSwitcher(ctx context.Context, addr, username, password string, l
 		}
 		return Atlonavs, nil
 	default:
-		return nil, fmt.Errorf("unknown device type")
+		return nil, fmt.Errorf("unknown device type %v", deviceType)
 	}
 }
