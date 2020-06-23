@@ -128,49 +128,55 @@ func (vs *AtlonaVideoSwitcher6x2) make6x2request(ctx context.Context, url, reque
 	return body, nil
 }
 
-//GetInputByOutput .
-func (vs *AtlonaVideoSwitcher6x2) GetInputByOutput(ctx context.Context, output string) (string, error) {
-	var resp atlonaVideo
-	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
+//GetAudioVideoInputs .
+func (vs *AtlonaVideoSwitcher6x2) GetAudioVideoInputs(ctx context.Context) (map[string]string, error) {
+	toReturn := make(map[string]string)
 
-	requestBody := fmt.Sprintf(`
-	{
-		"getConfig": {
-			"video": {
-				"vidOut": {
-					"hdmiOut": {
+	for i := 1; i < 3; i++ {
+		var resp atlonaVideo
+		url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
+
+		requestBody := fmt.Sprintf(`
+		{
+			"getConfig": {
+				"video": {
+					"vidOut": {
+						"hdmiOut": {
+						}
 					}
 				}
 			}
+		}`)
+
+		body, gerr := vs.make6x2request(ctx, url, requestBody)
+		if gerr != nil {
+			return toReturn, fmt.Errorf("An error occured while making the call: %w", gerr)
 		}
-	}`)
 
-	body, gerr := vs.make6x2request(ctx, url, requestBody)
-	if gerr != nil {
-		return "", fmt.Errorf("An error occured while making the call: %w", gerr)
+		err := json.Unmarshal([]byte(body), &resp)
+		if err != nil {
+			fmt.Printf("%s/n", body)
+			return toReturn, fmt.Errorf("error when unmarshalling the response: %w", err)
+		}
+
+		//Get the inputsrc for the requested output
+		input := ""
+		if i == 1 {
+			input = strconv.Itoa(resp.Video.VidOut.HdmiOut.HdmiOutA.VideoSrc)
+		} else if i == 2 {
+			input = strconv.Itoa(resp.Video.VidOut.HdmiOut.HdmiOutB.VideoSrc)
+		} else {
+			input = strconv.Itoa(resp.Video.VidOut.HdmiOut.Mirror.VideoSrc)
+		}
+
+		toReturn[strconv.Itoa(i)] = input
 	}
 
-	err := json.Unmarshal([]byte(body), &resp)
-	if err != nil {
-		fmt.Printf("%s/n", body)
-		return "", fmt.Errorf("error when unmarshalling the response: %w", err)
-	}
-
-	//Get the inputsrc for the requested output
-	input := ""
-	if output == "1" {
-		input = strconv.Itoa(resp.Video.VidOut.HdmiOut.HdmiOutA.VideoSrc)
-	} else if output == "2" {
-		input = strconv.Itoa(resp.Video.VidOut.HdmiOut.HdmiOutB.VideoSrc)
-	} else {
-		input = strconv.Itoa(resp.Video.VidOut.HdmiOut.Mirror.VideoSrc)
-	}
-
-	return input, nil
+	return toReturn, nil
 }
 
-//SetInputByOutput .
-func (vs *AtlonaVideoSwitcher6x2) SetInputByOutput(ctx context.Context, output, input string) error {
+//SetAudioVideoInput .
+func (vs *AtlonaVideoSwitcher6x2) SetAudioVideoInput(ctx context.Context, output, input string) error {
 	in, err := strconv.Atoi(input)
 	if err != nil {
 		return fmt.Errorf("error when making call: %w", err)
@@ -220,8 +226,8 @@ func (vs *AtlonaVideoSwitcher6x2) SetInputByOutput(ctx context.Context, output, 
 	return nil
 }
 
-//SetVolumeByBlock .
-func (vs *AtlonaVideoSwitcher6x2) SetVolumeByBlock(ctx context.Context, output string, level int) error {
+//SetVolume .
+func (vs *AtlonaVideoSwitcher6x2) SetVolume(ctx context.Context, output string, level int) error {
 	//Atlona volume levels are from -90 to 10 and the number we recieve is 0-100
 	//if volume level is supposed to be zero set it to zero (which is -90) on atlona
 
@@ -255,83 +261,94 @@ func (vs *AtlonaVideoSwitcher6x2) SetVolumeByBlock(ctx context.Context, output s
 	return nil
 }
 
-//GetVolumeByBlock .
-func (vs *AtlonaVideoSwitcher6x2) GetVolumeByBlock(ctx context.Context, output string) (int, error) {
-	var resp atlonaAudio
-	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
-	requestBody := fmt.Sprintf(`
-	{
-		"getConfig": {
-			"audio": {
-				"audOut": {
-					}
-				}
-			}
-	}`)
-	body, gerr := vs.make6x2request(ctx, url, requestBody)
-	if gerr != nil {
-		return 0, fmt.Errorf("An error occured while making the call: %w", gerr)
-	}
+//GetVolumes .
+func (vs *AtlonaVideoSwitcher6x2) GetVolumes(ctx context.Context, blocks []string) (map[string]int, error) {
+	toReturn := make(map[string]int)
 
-	err := json.Unmarshal([]byte(body), &resp) // here!
-	if err != nil {
-		return 0, fmt.Errorf("error when unmarshalling the response: %w", err)
-	}
-	if output == "1" {
-		if resp.Audio.AudOut.ZoneOut1.AudioVol < -40 {
-			return 0, nil
-		} else {
-			volume := ((resp.Audio.AudOut.ZoneOut1.AudioVol + 40) * 2)
-			return volume, nil
-		}
-
-	} else if output == "2" {
-		return resp.Audio.AudOut.ZoneOut2.AudioVol + 90, nil
-	} else {
-		return 0, fmt.Errorf("Invalid Output. Valid Output names are 1 and 2 you gave us %s", output)
-	}
-}
-
-//GetMutedByBlock .
-func (vs *AtlonaVideoSwitcher6x2) GetMutedByBlock(ctx context.Context, output string) (bool, error) {
-	var resp atlonaAudio
-	if output == "1" || output == "2" {
+	for _, block := range blocks {
+		var resp atlonaAudio
 		url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
 		requestBody := fmt.Sprintf(`
 		{
 			"getConfig": {
-				"audio":{
-					"audOut":{
-						"zoneOut%s":{
-							"analogOut": {				
-							}
+				"audio": {
+					"audOut": {
 						}
 					}
-				}	
-			}	
-		}`, output)
+				}
+		}`)
 		body, gerr := vs.make6x2request(ctx, url, requestBody)
 		if gerr != nil {
-			return false, fmt.Errorf("An error occured while making the call: %w", gerr)
+			return toReturn, fmt.Errorf("An error occured while making the call: %w", gerr)
 		}
-		err := json.Unmarshal([]byte(body), &resp)
+
+		err := json.Unmarshal([]byte(body), &resp) // here!
 		if err != nil {
-			return false, fmt.Errorf("error when unmarshalling the response: %w", err)
+			return toReturn, fmt.Errorf("error when unmarshalling the response: %w", err)
 		}
-	} else {
-		return false, fmt.Errorf("Invalid Output. Valid Output names are 1 and 2 you gave us %s", output)
+		if block == "1" {
+			if resp.Audio.AudOut.ZoneOut1.AudioVol < -40 {
+				toReturn[block] = 0
+			} else {
+				volume := ((resp.Audio.AudOut.ZoneOut1.AudioVol + 40) * 2)
+				toReturn[block] = volume
+			}
+		} else if block == "2" {
+			toReturn[block] = resp.Audio.AudOut.ZoneOut2.AudioVol + 90
+		} else {
+			return toReturn, fmt.Errorf("invalid Output. Valid Output names are 1 and 2 you gave us %s", block)
+		}
 	}
-	if output == "1" {
-		return resp.Audio.AudOut.ZoneOut1.AnalogOut.AudioMute, nil
-	} else if output == "2" {
-		return resp.Audio.AudOut.ZoneOut2.AnalogOut.AudioMute, nil
-	} else {
-		return false, fmt.Errorf("Invalid Output. Valid Output names are 1 and 2 you gave us %s", output)
-	}
+
+	return toReturn, nil
 }
 
-//SetMutedByBlock .
-func (vs *AtlonaVideoSwitcher6x2) SetMutedByBlock(ctx context.Context, output string, muted bool) error {
+//GetMutes .
+func (vs *AtlonaVideoSwitcher6x2) GetMutes(ctx context.Context, blocks []string) (map[string]bool, error) {
+	toReturn := make(map[string]bool)
+
+	for _, block := range blocks {
+		var resp atlonaAudio
+		if block == "1" || block == "2" {
+			url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
+			requestBody := fmt.Sprintf(`
+			{
+				"getConfig": {
+					"audio":{
+						"audOut":{
+							"zoneOut%s":{
+								"analogOut": {				
+								}
+							}
+						}
+					}	
+				}	
+			}`, block)
+			body, gerr := vs.make6x2request(ctx, url, requestBody)
+			if gerr != nil {
+				return toReturn, fmt.Errorf("An error occured while making the call: %w", gerr)
+			}
+			err := json.Unmarshal([]byte(body), &resp)
+			if err != nil {
+				return toReturn, fmt.Errorf("error when unmarshalling the response: %w", err)
+			}
+		} else {
+			return toReturn, fmt.Errorf("Invalid Output. Valid Output names are 1 and 2 you gave us %s", block)
+		}
+		if block == "1" {
+			toReturn[block] = resp.Audio.AudOut.ZoneOut1.AnalogOut.AudioMute
+		} else if block == "2" {
+			toReturn[block] = resp.Audio.AudOut.ZoneOut2.AnalogOut.AudioMute
+		} else {
+			return toReturn, fmt.Errorf("Invalid Output. Valid Output names are 1 and 2 you gave us %s", block)
+		}
+	}
+
+	return toReturn, nil
+}
+
+//SetMute .
+func (vs *AtlonaVideoSwitcher6x2) SetMute(ctx context.Context, output string, muted bool) error {
 	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
 	if output == "1" || output == "2" {
 		requestBody := fmt.Sprintf(`
