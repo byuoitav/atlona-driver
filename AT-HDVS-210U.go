@@ -47,25 +47,29 @@ func (vs *AtlonaVideoSwitcher2x1) make2x1request(ctx context.Context, url string
 	return body, nil
 }
 
-// GetInputByOutput .
-func (vs *AtlonaVideoSwitcher2x1) GetInputByOutput(ctx context.Context, output string) (string, error) {
+// GetAudioVideoInputs .
+func (vs *AtlonaVideoSwitcher2x1) GetAudioVideoInputs(ctx context.Context) (map[string]string, error) {
+	toReturn := make(map[string]string)
+
 	var resp wallPlateStruct
 	url := fmt.Sprintf("http://%s/aj.html?a=avs", vs.Address)
 	body, gerr := vs.make2x1request(ctx, url)
 	if gerr != nil {
-		return "", fmt.Errorf("An error occured while making the call: %w", gerr)
+		return toReturn, fmt.Errorf("An error occured while making the call: %w", gerr)
 	}
 	err := json.Unmarshal([]byte(body), &resp) // here!
 	if err != nil {
-		return "", fmt.Errorf("error when unmarshalling the response: %w", err)
+		return toReturn, fmt.Errorf("error when unmarshalling the response: %w", err)
 	}
 
-	return strconv.Itoa(resp.Inp), nil
+	in := strconv.Itoa(resp.Inp)
 
+	toReturn[""] = in
+	return toReturn, nil
 }
 
-// SetInputByOutput .
-func (vs *AtlonaVideoSwitcher2x1) SetInputByOutput(ctx context.Context, output, input string) error {
+// SetAudioVideoInput .
+func (vs *AtlonaVideoSwitcher2x1) SetAudioVideoInput(ctx context.Context, output, input string) error {
 	intInput, nerr := strconv.Atoi(input)
 	if nerr != nil {
 		return fmt.Errorf("failed to convert input from string to int: %w", nerr)
@@ -93,18 +97,18 @@ func (vs *AtlonaVideoSwitcher2x1) GetInfo(ctx context.Context) (interface{}, err
 	return info, fmt.Errorf("not currently implemented")
 }
 
-func (vs *AtlonaVideoSwitcher2x1) SetVolumeByBlock(ctx context.Context, block string, volume int) error {
+func (vs *AtlonaVideoSwitcher2x1) SetVolume(ctx context.Context, block string, volume int) error {
 	return fmt.Errorf("this function is not available for this device type")
 }
 
-func (vs *AtlonaVideoSwitcher2x1) SetMutedByBlock(ctx context.Context, block string, muted bool) error {
+func (vs *AtlonaVideoSwitcher2x1) SetMute(ctx context.Context, block string, muted bool) error {
 	return fmt.Errorf("this function is not available for this device type")
 }
 
-func (vs *AtlonaVideoSwitcher2x1) GetVolumeByBlock(ctx context.Context, block string) (int, error) {
-	return 0, fmt.Errorf("this function is not available for this device type")
+func (vs *AtlonaVideoSwitcher2x1) GetVolumes(ctx context.Context, blocks []string) (map[string]int, error) {
+	return make(map[string]int), fmt.Errorf("this function is not available for this device type")
 }
 
-func (vs *AtlonaVideoSwitcher2x1) GetMutedByBlock(ctx context.Context, block string) (bool, error) {
-	return false, fmt.Errorf("this function is not available for this device type")
+func (vs *AtlonaVideoSwitcher2x1) GetMutes(ctx context.Context, blocks []string) (map[string]bool, error) {
+	return make(map[string]bool), fmt.Errorf("this function is not available for this device type")
 }

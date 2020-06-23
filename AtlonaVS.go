@@ -15,14 +15,14 @@ import (
 type DeviceType int
 
 type AtlonaVideoSwitcher interface {
-	GetInputByOutput(ctx context.Context, output string) (string, error)
-	SetInputByOutput(ctx context.Context, output, input string) error
+	GetAudioVideoInputs(ctx context.Context) (map[string]string, error)
+	SetAudioVideoInput(ctx context.Context, output, input string) error
 
-	SetVolumeByBlock(ctx context.Context, block string, volume int) error
-	SetMutedByBlock(ctx context.Context, block string, muted bool) error
+	SetVolume(ctx context.Context, block string, volume int) error
+	SetMute(ctx context.Context, block string, muted bool) error
 
-	GetVolumeByBlock(ctx context.Context, block string) (int, error)
-	GetMutedByBlock(ctx context.Context, block string) (bool, error)
+	GetVolumes(ctx context.Context, blocks []string) (map[string]int, error)
+	GetMutes(ctx context.Context, blocks []string) (map[string]bool, error)
 
 	GetInfo(ctx context.Context) (interface{}, error)
 }
