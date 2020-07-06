@@ -10,13 +10,16 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/byuoitav/common/log"
 )
 
 // Amp60 represents an Atlona 60 watt amplifier
 type Amp60 struct {
-	Address string
+	Username string
+	Password string
+	Address  string
 }
 
 // AmpStatus represents the current amp status
@@ -34,6 +37,10 @@ type AmpAudio struct {
 	Muted  string `json:"609,omitempty"`
 }
 
+type loginResult struct {
+	Login bool
+}
+
 func getR() string {
 	return fmt.Sprintf("%v", rand.Float32())
 }
@@ -42,14 +49,30 @@ func getURL(address, endpoint string) string {
 	return "http://" + address + "/action=" + endpoint + "&r=" + getR()
 }
 
+func (a *Amp60) getLoginUrl() string {
+	return "http://" + a.Address + "/action=compare&701=" + a.Username + "&702=" + a.Password + "&r=" + getR()
+}
+
 func (a *Amp60) sendReq(ctx context.Context, endpoint string) ([]byte, error) {
+	// checking to validate that it is logged in
+	err := a.login(ctx)
+	if err != nil {
+		fmt.Errorf("Login failed to device: %v", err)
+	}
+
 	var toReturn []byte
 	ampUrl := getURL(a.Address, endpoint)
+	Client := http.Client{Timeout: time.Second * 10}
+
 	req, err := http.NewRequestWithContext(ctx, "GET", ampUrl, nil)
+	req.Header.Set("Context-type", "application/json")
+	//req, err := http.NewRequest("GET", ampUrl, nil)
+	log.L.Debug("Request Output: %v", req)
 	if err != nil {
 		return toReturn, fmt.Errorf("unable to make new http request: %w", err)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := Client.Do(req)
+	log.L.Debug("RESP Output: %v", resp)
 	if err != nil {
 		if nerr, ok := err.(*url.Error); ok {
 			fmt.Printf("%v\n", nerr.Err)
@@ -63,12 +86,56 @@ func (a *Amp60) sendReq(ctx context.Context, endpoint string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	toReturn, err = ioutil.ReadAll(resp.Body)
-	log.L.Infof("Repsonse: %v\n", resp)
+	s := string(toReturn)
+	log.L.Infof("Response: %v\n", s)
 
 	if err != nil {
 		return toReturn, fmt.Errorf("unable to read resp body: %w", err)
 	}
 	return toReturn, nil
+}
+
+// login for device
+func (a *Amp60) login(ctx context.Context) error {
+	// Check if we are currently logged in
+	resp, err := http.Get(a.getLoginUrl())
+	if err != nil {
+		return fmt.Errorf("Unable to log in: %v", err)
+	}
+	defer resp.Body.Close()
+	out, err := ioutil.ReadAll(resp.Body)
+	s := string(out)
+	if err != nil {
+		fmt.Errorf("Cannot read body of test: %v", err)
+	}
+
+	if strings.Contains(s, "404") == true {
+		var toReturn []byte
+		loginUrl := a.getLoginUrl()
+		Client := http.Client{Timeout: time.Second * 10}
+		req, err := http.NewRequestWithContext(ctx, "GET", loginUrl, nil)
+		if err != nil {
+			return fmt.Errorf("Unable to create request: %v", err)
+		}
+		resp, err := Client.Do(req)
+		if err != nil {
+			return fmt.Errorf("Unable to connect to device: %v", err)
+		}
+		defer resp.Body.Close()
+		toReturn, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("Cannot read the body of the response")
+		}
+		data := loginResult{}
+		json.Unmarshal(toReturn, &data)
+		if data.Login != true {
+			return fmt.Errorf("Not able to login: %v", err)
+		}
+		return nil
+	}
+
+	return nil
+
 }
 
 // GetInfo gets the current amp status
@@ -85,29 +152,29 @@ func (a *Amp60) GetInfo(ctx context.Context) (interface{}, error) {
 	return info, nil
 }
 
-// GetVolumes gets the current volume
-func (a *Amp60) GetVolumes(ctx context.Context, blocks []string) (map[string]int, error) {
-	toReturn := make(map[string]int)
-	for _, block := range blocks {
-		resp, err := a.sendReq(ctx, "deviceaudio_get")
-		if err != nil {
-			return toReturn, fmt.Errorf("unable to get volume: %w", err)
-		}
 
-		var info AmpAudio
-		err = json.Unmarshal(resp, &info)
-		if err != nil {
-			return toReturn, fmt.Errorf("unable to unmarshal into AmpVolume in GetVolume: %w", err)
-		}
-
-		volume, err := strconv.Atoi(info.Volume)
-		if err != nil {
-			return toReturn, fmt.Errorf("error converting volume to int: %s", err)
-		}
-
-		toReturn[block] = volume
+// GetVolumeByBlock gets the current volume
+func (a *Amp60) GetVolumeByBlock(ctx context.Context, block string) (int, error) {
+	resp, err := a.sendReq(ctx, "deviceaudio_get")
+	if err != nil {
+		return -1, fmt.Errorf("unable to get volume: %w", err)
 	}
+	var info AmpAudio
+	var test map[string]interface{}
+	json.Unmarshal(resp, &test)
+	for key, value := range test {
+		log.L.Debug(key, value.(string))
+	}
+	log.L.Debug("Testing our json: %v", test)
 
+	err = json.Unmarshal(resp, &info)
+	if err != nil {
+		return -1, fmt.Errorf("unable to unmarshal into AmpVolume in GetVolume: %w", err)
+	}
+	toReturn, err := strconv.Atoi(info.Volume)
+	if err != nil {
+		return -1, fmt.Errorf("Volume is empty")
+	}
 	return toReturn, nil
 }
 
