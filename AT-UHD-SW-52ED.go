@@ -66,8 +66,9 @@ func createConnectionFunc(address string) wspool.NewConnectionFunc {
 	}
 }
 
-//GetInputByOutput .
-func (vs *AtlonaVideoSwitcher5x1) GetInputByOutput(ctx context.Context, output string) (string, error) {
+//GetAudioVideoInputs .
+func (vs *AtlonaVideoSwitcher5x1) GetAudioVideoInputs(ctx context.Context) (map[string]string, error) {
+	toReturn := make(map[string]string)
 	vs.once.Do(vs.createPool)
 
 	var roomInfo room
@@ -116,20 +117,21 @@ func (vs *AtlonaVideoSwitcher5x1) GetInputByOutput(ctx context.Context, output s
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("failed to read message from channel: %s", err.Error())
+		return toReturn, fmt.Errorf("failed to read message from channel: %s", err.Error())
 	}
 
 	err = json.Unmarshal(bytes, &roomInfo)
 
 	if err != nil {
-		return "", fmt.Errorf("failed to unmarshal message: %s", err.Error())
+		return toReturn, fmt.Errorf("failed to unmarshal message: %s", err.Error())
 	}
 
-	return roomInfo.Result.AVSettings.Source[6:], nil
+	toReturn[""] = roomInfo.Result.AVSettings.Source[6:]
+	return toReturn, nil
 }
 
-//SetInputByOutput .
-func (vs *AtlonaVideoSwitcher5x1) SetInputByOutput(ctx context.Context, output, input string) error {
+//SetAudioVideoInput .
+func (vs *AtlonaVideoSwitcher5x1) SetAudioVideoInput(ctx context.Context, output, input string) error {
 	vs.once.Do(vs.createPool)
 
 	intInput, nerr := strconv.Atoi(input)
@@ -181,8 +183,8 @@ func (vs *AtlonaVideoSwitcher5x1) SetInputByOutput(ctx context.Context, output, 
 	return nil
 }
 
-//SetVolumeByBlock .
-func (vs *AtlonaVideoSwitcher5x1) SetVolumeByBlock(ctx context.Context, output string, level int) error {
+//SetVolume .
+func (vs *AtlonaVideoSwitcher5x1) SetVolume(ctx context.Context, output string, level int) error {
 	vs.once.Do(vs.createPool)
 
 	if level == 0 {
@@ -226,8 +228,10 @@ func (vs *AtlonaVideoSwitcher5x1) SetVolumeByBlock(ctx context.Context, output s
 	return nil
 }
 
-//GetVolumeByBlock .
-func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output string) (int, error) {
+//GetVolumes .
+func (vs *AtlonaVideoSwitcher5x1) GetVolumes(ctx context.Context, blocks []string) (map[string]int, error) {
+	toReturn := make(map[string]int)
+
 	vs.once.Do(vs.createPool)
 
 	var roomInfo room
@@ -271,110 +275,118 @@ func (vs *AtlonaVideoSwitcher5x1) GetVolumeByBlock(ctx context.Context, output s
 		return nil
 	})
 	if err != nil {
-		return 0, fmt.Errorf("failed to read message from channel: %s", err.Error())
+		return toReturn, fmt.Errorf("failed to read message from channel: %s", err.Error())
 	}
 
 	err = json.Unmarshal(bytes, &roomInfo)
 
 	if err != nil {
-		return 0, fmt.Errorf("failed to unmarshal response: %s", err.Error())
+		return toReturn, fmt.Errorf("failed to unmarshal response: %s", err.Error())
 	}
 
 	volumeLevel, err := strconv.Atoi(roomInfo.Result.AVSettings.Volume)
 	if err != nil {
-		return 0, fmt.Errorf("failed to convert volume to int: %s", err.Error())
+		return toReturn, fmt.Errorf("failed to convert volume to int: %s", err.Error())
 	}
 
 	if volumeLevel < -35 {
-		return 0, nil
+		toReturn[""] = 0
 	} else {
 		volume := ((volumeLevel + 35) * 2)
 		if volume%2 != 0 {
 			volume = volume + 1
 		}
-		return volume, nil
+		toReturn[""] = volume
 	}
+
+	return toReturn, nil
 }
 
-//GetMutedByBlock .
-func (vs *AtlonaVideoSwitcher5x1) GetMutedByBlock(ctx context.Context, output string) (bool, error) {
-	vs.once.Do(vs.createPool)
+//GetMutes .
+func (vs *AtlonaVideoSwitcher5x1) GetMutes(ctx context.Context, blocks []string) (map[string]bool, error) {
+	toReturn := make(map[string]bool)
 
-	var roomInfo room
-	var bytes []byte
+	for _, block := range blocks {
+		vs.once.Do(vs.createPool)
 
-	err := vs.pool.Do(ctx, func(ws *websocket.Conn) error {
-		body := `{
-			"jsonrpc": "2.0",
-			"id": "<configuration_id>",
-			"method": "config_get",
-			"params": {
-				"sections": [
-					"AV Settings"
-				]
+		var roomInfo room
+		var bytes []byte
+
+		err := vs.pool.Do(ctx, func(ws *websocket.Conn) error {
+			body := `{
+				"jsonrpc": "2.0",
+				"id": "<configuration_id>",
+				"method": "config_get",
+				"params": {
+					"sections": [
+						"AV Settings"
+					]
+				}
+			}`
+
+			vs.pool.Logger.Infof("writing message to Get Muted")
+
+			err := ws.WriteMessage(websocket.TextMessage, []byte(body))
+			if err != nil {
+				return fmt.Errorf("failed to write message: %s", err.Error())
 			}
-		}`
 
-		vs.pool.Logger.Infof("writing message to Get Muted")
+			timeout := time.Now()
+			timeout = timeout.Add(time.Second * 5)
 
-		err := ws.WriteMessage(websocket.TextMessage, []byte(body))
+			err = ws.SetReadDeadline(timeout)
+			if err != nil {
+				return fmt.Errorf("failed to set readDeadline: %s", err)
+			}
+
+			_, bytes, err = ws.ReadMessage()
+			if err != nil {
+				vs.Logger.Errorf("failed reading message from websocket: %s", err)
+				return fmt.Errorf("failed to read message: %s", err)
+			}
+
+			vs.pool.Logger.Infof("read message from Get Muted")
+
+			return nil
+		})
 		if err != nil {
-			return fmt.Errorf("failed to write message: %s", err.Error())
+			return toReturn, fmt.Errorf("failed to read message from channel: %s", err.Error())
 		}
 
-		timeout := time.Now()
-		timeout = timeout.Add(time.Second * 5)
+		err = json.Unmarshal(bytes, &roomInfo)
 
-		err = ws.SetReadDeadline(timeout)
 		if err != nil {
-			return fmt.Errorf("failed to set readDeadline: %s", err)
+			return toReturn, fmt.Errorf("failed to unmarshal response: %s", err.Error())
 		}
 
-		_, bytes, err = ws.ReadMessage()
-		if err != nil {
-			vs.Logger.Errorf("failed reading message from websocket: %s", err)
-			return fmt.Errorf("failed to read message: %s", err)
+		switch block {
+		case "HDMI":
+			isMuted, err := strconv.ParseBool(fmt.Sprintf("%v", roomInfo.Result.AVSettings.HDMIAudioMute))
+			if err != nil {
+				return toReturn, fmt.Errorf("failed to parse bool: %s", err.Error())
+			}
+			toReturn[block] = isMuted
+		case "HDBT":
+			isMuted, err := strconv.ParseBool(fmt.Sprintf("%v", roomInfo.Result.AVSettings.HDBTAudioMute))
+			if err != nil {
+				return toReturn, fmt.Errorf("failed to parse bool: %s", err.Error())
+			}
+			toReturn[block] = isMuted
+		default:
+			// Analog
+			isMuted, err := strconv.ParseBool(fmt.Sprintf("%v", roomInfo.Result.AVSettings.AnalogAudioMute))
+			if err != nil {
+				return toReturn, fmt.Errorf("failed to parse bool: %s", err.Error())
+			}
+			toReturn[block] = isMuted
 		}
-
-		vs.pool.Logger.Infof("read message from Get Muted")
-
-		return nil
-	})
-	if err != nil {
-		return false, fmt.Errorf("failed to read message from channel: %s", err.Error())
 	}
 
-	err = json.Unmarshal(bytes, &roomInfo)
-
-	if err != nil {
-		return false, fmt.Errorf("failed to unmarshal response: %s", err.Error())
-	}
-
-	switch output {
-	case "HDMI":
-		isMuted, err := strconv.ParseBool(fmt.Sprintf("%v", roomInfo.Result.AVSettings.HDMIAudioMute))
-		if err != nil {
-			return false, fmt.Errorf("failed to parse bool: %s", err.Error())
-		}
-		return isMuted, nil
-	case "HDBT":
-		isMuted, err := strconv.ParseBool(fmt.Sprintf("%v", roomInfo.Result.AVSettings.HDBTAudioMute))
-		if err != nil {
-			return false, fmt.Errorf("failed to parse bool: %s", err.Error())
-		}
-		return isMuted, nil
-	default:
-		// Analog
-		isMuted, err := strconv.ParseBool(fmt.Sprintf("%v", roomInfo.Result.AVSettings.AnalogAudioMute))
-		if err != nil {
-			return false, fmt.Errorf("failed to parse bool: %s", err.Error())
-		}
-		return isMuted, nil
-	}
+	return toReturn, nil
 }
 
-//SetMutedByBlock .
-func (vs *AtlonaVideoSwitcher5x1) SetMutedByBlock(ctx context.Context, output string, muted bool) error {
+//SetMute .
+func (vs *AtlonaVideoSwitcher5x1) SetMute(ctx context.Context, output string, muted bool) error {
 	vs.once.Do(vs.createPool)
 
 	var audioBlock string

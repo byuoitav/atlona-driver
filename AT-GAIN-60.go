@@ -152,6 +152,7 @@ func (a *Amp60) GetInfo(ctx context.Context) (interface{}, error) {
 	return info, nil
 }
 
+
 // GetVolumeByBlock gets the current volume
 func (a *Amp60) GetVolumeByBlock(ctx context.Context, block string) (int, error) {
 	resp, err := a.sendReq(ctx, "deviceaudio_get")
@@ -177,25 +178,32 @@ func (a *Amp60) GetVolumeByBlock(ctx context.Context, block string) (int, error)
 	return toReturn, nil
 }
 
-// GetMutedByBlock gets the current muted status
-func (a *Amp60) GetMutedByBlock(ctx context.Context, block string) (bool, error) {
-	resp, err := a.sendReq(ctx, "deviceaudio_get")
-	if err != nil {
-		return false, fmt.Errorf("unable to get muted: %w", err)
+// GetMutes gets the current muted status
+func (a *Amp60) GetMutes(ctx context.Context, blocks []string) (map[string]bool, error) {
+	toReturn := make(map[string]bool)
+
+	for _, block := range blocks {
+		resp, err := a.sendReq(ctx, "deviceaudio_get")
+		if err != nil {
+			return toReturn, fmt.Errorf("unable to get muted: %w", err)
+		}
+		var info AmpAudio
+		err = json.Unmarshal(resp, &info)
+		if err != nil {
+			return toReturn, fmt.Errorf("unable to unmarshal into AmpVolume in GetMuted: %w", err)
+		}
+		if info.Muted == "1" {
+			toReturn[block] = true
+		} else {
+			toReturn[block] = false
+		}
 	}
-	var info AmpAudio
-	err = json.Unmarshal(resp, &info)
-	if err != nil {
-		return false, fmt.Errorf("unable to unmarshal into AmpVolume in GetMuted: %w", err)
-	}
-	if info.Muted == "1" {
-		return true, nil
-	}
-	return false, nil
+
+	return toReturn, nil
 }
 
-// SetVolumeByBlock sets the volume on the amp
-func (a *Amp60) SetVolumeByBlock(ctx context.Context, block string, volume int) error {
+// SetVolume sets the volume on the amp
+func (a *Amp60) SetVolume(ctx context.Context, block string, volume int) error {
 	_, err := a.sendReq(ctx, fmt.Sprintf("deviceaudio_set&608=%v", volume))
 	if err != nil {
 		return fmt.Errorf("unable to set volume: %w", err)
@@ -203,8 +211,8 @@ func (a *Amp60) SetVolumeByBlock(ctx context.Context, block string, volume int) 
 	return nil
 }
 
-// SetMutedByBlock sets the current muted status on the amp
-func (a *Amp60) SetMutedByBlock(ctx context.Context, block string, muted bool) error {
+// SetMute sets the current muted status on the amp
+func (a *Amp60) SetMute(ctx context.Context, block string, muted bool) error {
 	// open a connection with the dsp, set the muted status on block...
 	mutedString := "0"
 	if muted {
