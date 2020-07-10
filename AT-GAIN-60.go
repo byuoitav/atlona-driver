@@ -207,7 +207,7 @@ func (a *Amp60) SetVolumeByBlock(ctx context.Context, block string, volume int) 
 func (a *Amp60) SetMutedByBlock(ctx context.Context, block string, muted bool) error {
 	// open a connection with the dsp, set the muted status on block...
 	mutedString := "0"
-	if muted {
+	if muted == true {
 		mutedString = "1"
 	}
 	_, err := a.sendReq(ctx, fmt.Sprintf("deviceaudio_set&609=%v", mutedString))
