@@ -24,8 +24,7 @@ func TestGetAudioVideoInputsMirrored(t *testing.T) {
 	defer ts.Close()
 
 	vs := &AtOmePs62{
-		Address:      strings.TrimPrefix(ts.URL, "http://"),
-		RequestDelay: 1 * time.Nanosecond,
+		Address: strings.TrimPrefix(ts.URL, "http://"),
 	}
 
 	inputs, err := vs.GetAudioVideoInputs(context.Background())
@@ -45,8 +44,7 @@ func TestGetAudioVideoInputsSeparate(t *testing.T) {
 	defer ts.Close()
 
 	vs := &AtOmePs62{
-		Address:      strings.TrimPrefix(ts.URL, "http://"),
-		RequestDelay: 1 * time.Nanosecond,
+		Address: strings.TrimPrefix(ts.URL, "http://"),
 	}
 
 	inputs, err := vs.GetAudioVideoInputs(context.Background())
@@ -56,9 +54,8 @@ func TestGetAudioVideoInputsSeparate(t *testing.T) {
 
 func TestAuth(t *testing.T) {
 	vs := &AtOmePs62{
-		Username:     "username",
-		Password:     "password",
-		RequestDelay: 1 * time.Nanosecond,
+		Username: "username",
+		Password: "password",
 	}
 
 	get := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

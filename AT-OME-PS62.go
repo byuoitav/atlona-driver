@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	_omePs62Endpoint            = "/cgi-bin/config.cgi"
-	_omePs62DefaultRequestDelay = 500 * time.Millisecond
+	_omePs62Endpoint = "/cgi-bin/config.cgi"
 )
 
 type AtOmePs62 struct {
@@ -81,11 +80,7 @@ type audioConfig struct {
 }
 
 func (vs *AtOmePs62) init() {
-	if vs.RequestDelay == 0 {
-		vs.limiter = rate.NewLimiter(rate.Every(_omePs62DefaultRequestDelay), 1)
-	} else {
-		vs.limiter = rate.NewLimiter(rate.Every(vs.RequestDelay), 1)
-	}
+	vs.limiter = rate.NewLimiter(rate.Every(vs.RequestDelay), 1)
 }
 
 func (vs *AtOmePs62) getConfig(ctx context.Context, body string) (config, error) {
