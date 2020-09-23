@@ -77,7 +77,7 @@ func (vs *AtOmePs62) getConfig(ctx context.Context, body string) (config, error)
 	}
 
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Basic YWRtaW46QXRsb25h")
+	req.SetBasicAuth(vs.Username, vs.Password)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -100,7 +100,7 @@ func (vs *AtOmePs62) setConfig(ctx context.Context, body string) error {
 	}
 
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Basic YWRtaW46QXRsb25h")
+	req.SetBasicAuth(vs.Username, vs.Password)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
