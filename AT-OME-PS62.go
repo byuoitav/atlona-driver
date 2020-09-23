@@ -9,16 +9,29 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
+
+	"golang.org/x/time/rate"
 )
 
 const (
-	_omePs62Endpoint = "/cgi-bin/config.cgi"
+	_omePs62Endpoint            = "/cgi-bin/config.cgi"
+	_omePs62DefaultRequestDelay = 500 * time.Millisecond
 )
 
 type AtOmePs62 struct {
 	Username string
 	Password string
 	Address  string
+
+	// RequestDelay is the time to wait after sending one request to the videoswitcher
+	// before sending another one. Once you have called a function on the struct,
+	// changing it's value will not affect the delay.
+	RequestDelay time.Duration
+
+	once    sync.Once
+	limiter *rate.Limiter
 }
 
 type config struct {
@@ -67,7 +80,17 @@ type audioConfig struct {
 	} `json:"audOut"`
 }
 
+func (vs *AtOmePs62) init() {
+	if vs.RequestDelay == 0 {
+		vs.limiter = rate.NewLimiter(rate.Every(_omePs62DefaultRequestDelay), 1)
+	} else {
+		vs.limiter = rate.NewLimiter(rate.Every(vs.RequestDelay), 1)
+	}
+}
+
 func (vs *AtOmePs62) getConfig(ctx context.Context, body string) (config, error) {
+	vs.once.Do(vs.init)
+
 	var config config
 
 	url := "http://" + vs.Address + _omePs62Endpoint
@@ -77,7 +100,13 @@ func (vs *AtOmePs62) getConfig(ctx context.Context, body string) (config, error)
 	}
 
 	req.Header.Add("Content-Type", "application/json")
-	req.SetBasicAuth(vs.Username, vs.Password)
+	if len(vs.Username) > 0 {
+		req.SetBasicAuth(vs.Username, vs.Password)
+	}
+
+	if err := vs.limiter.Wait(ctx); err != nil {
+		return config, fmt.Errorf("unable to wait for ratelimit: %w", err)
+	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -93,6 +122,8 @@ func (vs *AtOmePs62) getConfig(ctx context.Context, body string) (config, error)
 }
 
 func (vs *AtOmePs62) setConfig(ctx context.Context, body string) error {
+	vs.once.Do(vs.init)
+
 	url := "http://" + vs.Address + _omePs62Endpoint
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(body))
 	if err != nil {
@@ -100,7 +131,13 @@ func (vs *AtOmePs62) setConfig(ctx context.Context, body string) error {
 	}
 
 	req.Header.Add("Content-Type", "application/json")
-	req.SetBasicAuth(vs.Username, vs.Password)
+	if len(vs.Username) > 0 {
+		req.SetBasicAuth(vs.Username, vs.Password)
+	}
+
+	if err := vs.limiter.Wait(ctx); err != nil {
+		return fmt.Errorf("unable to wait for ratelimit: %w", err)
+	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

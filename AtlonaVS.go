@@ -62,7 +62,7 @@ func CreateVideoSwitcher(ctx context.Context, addr, username, password string, l
 
 	switch deviceType {
 	case "AT-OME-PS62":
-		Atlonavs := &AtlonaVideoSwitcher6x2{
+		Atlonavs := &AtOmePs62{
 			Username: username,
 			Password: password,
 			Address:  addr,
