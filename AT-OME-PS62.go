@@ -3,378 +3,248 @@ package atlona
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/byuoitav/common/structs"
 )
 
-type AtlonaVideoSwitcher6x2 struct {
+const (
+	_omePs62Endpoint = "/cgi-bin/config.cgi"
+)
+
+type AtOmePs62 struct {
 	Username string
 	Password string
 	Address  string
 }
 
-type atlonaVideo struct {
-	Video struct {
-		VidOut struct {
-			HdmiOut struct {
-				HdmiOutA struct {
-					VideoSrc int `json:"videoSrc"`
-				} `json:"hdmiOutA"`
-				HdmiOutB struct {
-					VideoSrc int `json:"videoSrc"`
-				} `json:"hdmiOutB"`
-				Mirror struct {
-					VideoSrc int `json:"videoSrc"`
-				}
-			} `json:"hdmiOut"`
-		} `json:"vidOut"`
-	} `json:"video"`
+type config struct {
+	Video videoConfig `json:"video"`
+	Audio audioConfig `json:"audio"`
 }
 
-type atlonaAudio struct {
-	Audio struct {
-		AudOut struct {
-			ZoneOut1 struct {
-				AnalogOut struct {
-					AudioMute  bool `json:"audioMute"`
-					AudioDelay int  `json:"audioDelay"`
-				} `json:"analogOut"`
-				AudioVol int `json:"audioVol"`
-			} `json:"zoneOut1"`
-			ZoneOut2 struct {
-				AnalogOut struct {
-					AudioMute  bool `json:"audioMute"`
-					AudioDelay int  `json:"audioDelay"`
-				} `json:"analogOut"`
-				AudioVol int `json:"audioVol"`
-			} `json:"zoneOut2"`
-		} `json:"audOut"`
-	} `json:"audio"`
+type videoConfig struct {
+	VidOut struct {
+		HdmiOut struct {
+			Mirror struct {
+				Status   bool `json:"status"`
+				VideoSrc int  `json:"videoSrc"`
+			} `json:"mirror"`
+
+			HdmiOutA struct {
+				VideoSrc int `json:"videoSrc"`
+			} `json:"hdmiOutA"`
+
+			HdmiOutB struct {
+				VideoSrc int `json:"videoSrc"`
+			} `json:"hdmiOutB"`
+		} `json:"hdmiOut"`
+	} `json:"vidOut"`
 }
 
-type atlonaNetwork struct {
-	Network struct {
-		Eth0 struct {
-			MacAddr    string `json:"macAddr"`
-			DomainName string `json:"domainName"`
-			DNSServer1 string `json:"dnsServer1"`
-			DNSServer2 string `json:"dnsServer2"`
-			IPSettings struct {
-				TelnetPort int    `json:"telnetPort"`
-				Ipaddr     string `json:"ipaddr"`
-				Netmask    string `json:"netmask"`
-				Gateway    string `json:"gateway"`
-			} `json:"ipSettings"`
-			LastIpaddr string `json:"lastIpaddr"`
-			BootProto  string `json:"bootProto"`
-		} `json:"eth0"`
-	} `json:"network"`
+type audioConfig struct {
+	AudOut struct {
+		ZoneOut1 struct {
+			AudioSource string `json:"audioSource"`
+			AudioVol    int    `json:"audioVol"`
+
+			AnalogOut struct {
+				AudioMute bool `json:"audioMute"`
+			} `json:"analogOut"`
+		} `json:"zoneOut1"`
+
+		ZoneOut2 struct {
+			AudioSource string `json:"audioSource"`
+			AudioVol    int    `json:"audioVol"`
+
+			AnalogOut struct {
+				AudioMute bool `json:"audioMute"`
+			} `json:"analogOut"`
+		} `json:"zoneOut2"`
+	} `json:"audOut"`
 }
 
-//Atlona6x2HardwareInfo .
-type atlonaHardwareInfo struct {
-	System struct {
-		PowerStatus     string `json:"powerStatus"`
-		VendorID        string `json:"vendorID"`
-		Model           string `json:"model"`
-		SerialNumber    string `json:"serialNumber"`
-		FirmwareVersion struct {
-			Package          string `json:"package"`
-			MasterMCU        string `json:"masterMCU"`
-			TransceiverChipB string `json:"transceiverChip_B"`
-			TransceiverChipC string `json:"transceiverChip_C"`
-			TransceiverChipE string `json:"transceiverChip_E"`
-			TransceiverChipF string `json:"transceiverChip_F"`
-			Audio            string `json:"audio"`
-			Fpga             string `json:"fpga"`
-			Usb              string `json:"usb"`
-			ScalerChip       string `json:"scalerChip"`
-			ValensA          string `json:"valens_A"`
-			ValensB          string `json:"valens_B"`
-			ValensC          string `json:"valens_C"`
-			SlaveMCU         string `json:"slaveMCU"`
-			TransceiverChipA string `json:"transceiverChip_A"`
-		} `json:"firmwareVersion"`
-	} `json:"system"`
-}
+func (vs *AtOmePs62) getConfig(ctx context.Context, body string) (config, error) {
+	var config config
 
-func (vs *AtlonaVideoSwitcher6x2) make6x2request(ctx context.Context, url, requestBody string) ([]byte, error) {
-	payload := strings.NewReader(requestBody)
-
-	req, err := http.NewRequest("POST", url, payload)
+	url := "http://" + vs.Address + _omePs62Endpoint
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("error when creting the request: %w", err)
+		return config, fmt.Errorf("unable to create request: %w", err)
 	}
-	req = req.WithContext(ctx)
+
 	req.Header.Add("Content-Type", "application/json")
-	//This needs to be replaced with an environmental variable
 	req.Header.Add("Authorization", "Basic YWRtaW46QXRsb25h")
-	res, gerr := http.DefaultClient.Do(req)
-	if gerr != nil {
-		return nil, fmt.Errorf("error when making call: %w", gerr)
-	}
-	defer res.Body.Close()
 
-	body, err := ioutil.ReadAll(res.Body)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error when making call: %w", gerr)
+		return config, fmt.Errorf("unable to do request: %w", err)
 	}
-	return body, nil
+	defer resp.Body.Close()
+
+	if err := json.NewDecoder(resp.Body).Decode(&config); err != nil {
+		return config, fmt.Errorf("unable to decode response: %w", err)
+	}
+
+	return config, nil
 }
 
-//GetAudioVideoInputs .
-func (vs *AtlonaVideoSwitcher6x2) GetAudioVideoInputs(ctx context.Context) (map[string]string, error) {
-	toReturn := make(map[string]string)
-
-	for i := 1; i < 3; i++ {
-		var resp atlonaVideo
-		url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
-
-		requestBody := fmt.Sprintf(`
-		{
-			"getConfig": {
-				"video": {
-					"vidOut": {
-						"hdmiOut": {
-						}
-					}
-				}
-			}
-		}`)
-
-		body, gerr := vs.make6x2request(ctx, url, requestBody)
-		if gerr != nil {
-			return toReturn, fmt.Errorf("An error occured while making the call: %w", gerr)
-		}
-
-		err := json.Unmarshal([]byte(body), &resp)
-		if err != nil {
-			fmt.Printf("%s/n", body)
-			return toReturn, fmt.Errorf("error when unmarshalling the response: %w", err)
-		}
-
-		//Get the inputsrc for the requested output
-		input := ""
-		if i == 1 {
-			input = strconv.Itoa(resp.Video.VidOut.HdmiOut.HdmiOutA.VideoSrc)
-		} else if i == 2 {
-			input = strconv.Itoa(resp.Video.VidOut.HdmiOut.HdmiOutB.VideoSrc)
-		} else {
-			input = strconv.Itoa(resp.Video.VidOut.HdmiOut.Mirror.VideoSrc)
-		}
-
-		toReturn[strconv.Itoa(i)] = input
-	}
-
-	return toReturn, nil
-}
-
-//SetAudioVideoInput .
-func (vs *AtlonaVideoSwitcher6x2) SetAudioVideoInput(ctx context.Context, output, input string) error {
-	in, err := strconv.Atoi(input)
+func (vs *AtOmePs62) setConfig(ctx context.Context, body string) error {
+	url := "http://" + vs.Address + _omePs62Endpoint
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("error when making call: %w", err)
-	}
-	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
-	requestBody := ""
-	if output == "1" {
-		requestBody = fmt.Sprintf(`
-		{
-			"setConfig":{
-				"video":{
-					"vidOut":{
-						"hdmiOut":{
-							"hdmiOutA":{
-								"videoSrc":%v
-							}
-						}
-					}
-				}
-			}
-		}`, in)
-	} else if output == "2" {
-		requestBody = fmt.Sprintf(`
-		{
-			"setConfig":{
-				"video":{
-					"vidOut":{
-						"hdmiOut":{
-							"hdmiOutB":{
-								"videoSrc":%v
-							}
-						}
-					}
-				}
-			}
-		}`, in)
-	} else {
-		requestBody = fmt.Sprintf(`
-		{"setConfig":{"video":{"vidOut":{"hdmiOut":{"mirror":{"videoSrc":%v}}}}}}
-		`, in)
+		return fmt.Errorf("unable to create request: %w", err)
 	}
 
-	_, gerr := vs.make6x2request(ctx, url, requestBody)
-	if gerr != nil {
-		return fmt.Errorf("An error occured while making the call: %w", gerr)
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", "Basic YWRtaW46QXRsb25h")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("unable to do request: %w", err)
 	}
+	defer resp.Body.Close()
+
+	var res struct {
+		Status  int    `json:"status"`
+		Message string `json:"message"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return fmt.Errorf("unable to decode response: %w", err)
+	}
+
+	if !strings.EqualFold(res.Message, "OK") {
+		return fmt.Errorf("bad response (%d): %s", res.Status, res.Message)
+	}
+
 	return nil
 }
 
-//SetVolume .
-func (vs *AtlonaVideoSwitcher6x2) SetVolume(ctx context.Context, output string, level int) error {
-	//Atlona volume levels are from -90 to 10 and the number we recieve is 0-100
-	//if volume level is supposed to be zero set it to zero (which is -90) on atlona
+// GetAudioVideoInputs .
+func (vs *AtOmePs62) GetAudioVideoInputs(ctx context.Context) (map[string]string, error) {
+	body := `{ "getConfig": { "video": { "vidOut": { "hdmiOut": {}}}}}`
 
+	config, err := vs.getConfig(ctx, body)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get config: %w", err)
+	}
+
+	inputs := make(map[string]string)
+	if config.Video.VidOut.HdmiOut.Mirror.Status {
+		inputs["mirror"] = strconv.Itoa(config.Video.VidOut.HdmiOut.Mirror.VideoSrc)
+	} else {
+		inputs["hdmiOutA"] = strconv.Itoa(config.Video.VidOut.HdmiOut.HdmiOutA.VideoSrc)
+		inputs["hdmiOutB"] = strconv.Itoa(config.Video.VidOut.HdmiOut.HdmiOutB.VideoSrc)
+	}
+
+	return inputs, nil
+}
+
+// SetAudioVideoInput .
+func (vs *AtOmePs62) SetAudioVideoInput(ctx context.Context, output, input string) error {
+	in, err := strconv.Atoi(input)
+	if err != nil {
+		return fmt.Errorf("input must be an int: %w", err)
+	}
+
+	body := fmt.Sprintf(`{ "setConfig": { "video": { "vidOut": { "hdmiOut": { "%s": { "videoSrc": %v }}}}}}`, output, in)
+	if err := vs.setConfig(ctx, body); err != nil {
+		return fmt.Errorf("unable to set config: %w", err)
+	}
+
+	return nil
+}
+
+// GetVolumes .
+func (vs *AtOmePs62) GetVolumes(ctx context.Context, blocks []string) (map[string]int, error) {
+	body := `{ "getConfig": "audio": { "audOut": {}}}`
+
+	config, err := vs.getConfig(ctx, body)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get config: %w", err)
+	}
+
+	// always return all of the blocks, regardless of `blocks`
+	// (since we don't have to do any extra work)
+	vols := make(map[string]int)
+
+	// zoneOut1 volume
+	if config.Audio.AudOut.ZoneOut1.AudioVol < -50 {
+		vols["zoneOut1"] = 0
+	} else {
+		vols["zoneOut1"] = 2 * (config.Audio.AudOut.ZoneOut1.AudioVol + 50)
+	}
+
+	// zoneOut2 volume
+	if config.Audio.AudOut.ZoneOut2.AudioVol < -50 {
+		vols["zoneOut2"] = 0
+	} else {
+		vols["zoneOut2"] = 2 * (config.Audio.AudOut.ZoneOut2.AudioVol + 50)
+	}
+
+	return vols, nil
+}
+
+// SetVolume .
+func (vs *AtOmePs62) SetVolume(ctx context.Context, output string, level int) error {
+	if output != "zoneOut1" && output != "zoneOut2" {
+		return errors.New("invalid output")
+	}
+
+	// Atlona volume levels are from -90 to 10 and the number we receive is 0-100
+	// If volume level is supposed to be zero set it -90 on atlona
 	if level == 0 {
 		level = -90
 	} else {
-		convertedVolume := -40 + math.Round(float64(level/2))
+		convertedVolume := -50 + math.Round(float64(level/2))
 		level = int(convertedVolume)
 	}
-	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
-	if output == "1" || output == "2" {
-		requestBody := fmt.Sprintf(`
-		{
-			"setConfig": {
-				"audio": {
-					"audOut": {
-						"zoneOut%s": {
-							"audioVol": %d
-						}
-					}
-				}
-			}
-		}`, output, level)
-		_, gerr := vs.make6x2request(ctx, url, requestBody)
-		if gerr != nil {
-			return fmt.Errorf("An error occured while making the call: %w", gerr)
-		}
-	} else {
-		return fmt.Errorf("Invalid Output. Valid Audio Output names are Audio1 and Audio2: you gave us %s", output)
+
+	body := fmt.Sprintf(`{ "setConfig": { "audio": { "audOut": { "%s": { "audioVol": %d }}}}}`, output, level)
+	if err := vs.setConfig(ctx, body); err != nil {
+		return fmt.Errorf("unable to set config: %w", err)
 	}
+
 	return nil
 }
 
-//GetVolumes .
-func (vs *AtlonaVideoSwitcher6x2) GetVolumes(ctx context.Context, blocks []string) (map[string]int, error) {
-	toReturn := make(map[string]int)
+// GetMutes .
+func (vs *AtOmePs62) GetMutes(ctx context.Context, blocks []string) (map[string]bool, error) {
+	body := `{ "getConfig": "audio": { "audOut": {}}}`
 
-	for _, block := range blocks {
-		var resp atlonaAudio
-		url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
-		requestBody := fmt.Sprintf(`
-		{
-			"getConfig": {
-				"audio": {
-					"audOut": {
-						}
-					}
-				}
-		}`)
-		body, gerr := vs.make6x2request(ctx, url, requestBody)
-		if gerr != nil {
-			return toReturn, fmt.Errorf("An error occured while making the call: %w", gerr)
-		}
-
-		err := json.Unmarshal([]byte(body), &resp) // here!
-		if err != nil {
-			return toReturn, fmt.Errorf("error when unmarshalling the response: %w", err)
-		}
-		if block == "1" {
-			if resp.Audio.AudOut.ZoneOut1.AudioVol < -40 {
-				toReturn[block] = 0
-			} else {
-				volume := ((resp.Audio.AudOut.ZoneOut1.AudioVol + 40) * 2)
-				toReturn[block] = volume
-			}
-		} else if block == "2" {
-			toReturn[block] = resp.Audio.AudOut.ZoneOut2.AudioVol + 90
-		} else {
-			return toReturn, fmt.Errorf("invalid Output. Valid Output names are 1 and 2 you gave us %s", block)
-		}
+	config, err := vs.getConfig(ctx, body)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get config: %w", err)
 	}
 
-	return toReturn, nil
+	// always return all of the blocks, regardless of `blocks`
+	// (since we don't have to do any extra work)
+	mutes := make(map[string]bool)
+	mutes["zoneOut1"] = config.Audio.AudOut.ZoneOut1.AnalogOut.AudioMute
+	mutes["zoneOut2"] = config.Audio.AudOut.ZoneOut2.AnalogOut.AudioMute
+
+	return mutes, nil
 }
 
-//GetMutes .
-func (vs *AtlonaVideoSwitcher6x2) GetMutes(ctx context.Context, blocks []string) (map[string]bool, error) {
-	toReturn := make(map[string]bool)
-
-	for _, block := range blocks {
-		var resp atlonaAudio
-		if block == "1" || block == "2" {
-			url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
-			requestBody := fmt.Sprintf(`
-			{
-				"getConfig": {
-					"audio":{
-						"audOut":{
-							"zoneOut%s":{
-								"analogOut": {				
-								}
-							}
-						}
-					}	
-				}	
-			}`, block)
-			body, gerr := vs.make6x2request(ctx, url, requestBody)
-			if gerr != nil {
-				return toReturn, fmt.Errorf("An error occured while making the call: %w", gerr)
-			}
-			err := json.Unmarshal([]byte(body), &resp)
-			if err != nil {
-				return toReturn, fmt.Errorf("error when unmarshalling the response: %w", err)
-			}
-		} else {
-			return toReturn, fmt.Errorf("Invalid Output. Valid Output names are 1 and 2 you gave us %s", block)
-		}
-		if block == "1" {
-			toReturn[block] = resp.Audio.AudOut.ZoneOut1.AnalogOut.AudioMute
-		} else if block == "2" {
-			toReturn[block] = resp.Audio.AudOut.ZoneOut2.AnalogOut.AudioMute
-		} else {
-			return toReturn, fmt.Errorf("Invalid Output. Valid Output names are 1 and 2 you gave us %s", block)
-		}
+// SetMute .
+func (vs *AtOmePs62) SetMute(ctx context.Context, output string, muted bool) error {
+	if output != "zoneOut1" && output != "zoneOut2" {
+		return errors.New("invalid output")
 	}
 
-	return toReturn, nil
-}
-
-//SetMute .
-func (vs *AtlonaVideoSwitcher6x2) SetMute(ctx context.Context, output string, muted bool) error {
-	url := fmt.Sprintf("http://%s/cgi-bin/config.cgi", vs.Address)
-	if output == "1" || output == "2" {
-		requestBody := fmt.Sprintf(`
-		{
-			"setConfig": {
-				"audio": {
-					"audOut": {
-						"zoneOut%s": {
-							"analogOut": {
-								"audioMute": %v
-							}
-						}
-					}
-				}
-			}
-		}`, output, muted)
-		_, gerr := vs.make6x2request(ctx, url, requestBody)
-		if gerr != nil {
-			return fmt.Errorf("An error occured while making the call: %w", gerr)
-		}
-	} else {
-		return fmt.Errorf("Invalid Output. Valid Output names are Audio1 and Audio2 you gave us %s", output)
+	body := fmt.Sprintf(`{ "setConfig": { "audio": { "audOut": { "%s": { "analogOut": { "audioMute": %t }}}}}}`, output, muted)
+	if err := vs.setConfig(ctx, body); err != nil {
+		return fmt.Errorf("unable to set config: %w", err)
 	}
+
 	return nil
 }
 
+/*
 //GetHardwareInfo .
 func (vs *AtlonaVideoSwitcher6x2) GetHardwareInfo(ctx context.Context) (structs.HardwareInfo, error) {
 	var network atlonaNetwork
@@ -428,9 +298,56 @@ func (vs *AtlonaVideoSwitcher6x2) GetHardwareInfo(ctx context.Context) (structs.
 	resp.PowerStatus = hardware.System.PowerStatus
 	return resp, nil
 }
+*/
 
-//GetInfo .
-func (vs *AtlonaVideoSwitcher6x2) GetInfo(ctx context.Context) (interface{}, error) {
-	var info interface{}
-	return info, fmt.Errorf("not currently implemented")
+// GetInfo .
+func (vs *AtOmePs62) GetInfo(ctx context.Context) (interface{}, error) {
+	return nil, fmt.Errorf("not currently implemented")
 }
+
+/*
+type atlonaNetwork struct {
+	Network struct {
+		Eth0 struct {
+			MacAddr    string `json:"macAddr"`
+			DomainName string `json:"domainName"`
+			DNSServer1 string `json:"dnsServer1"`
+			DNSServer2 string `json:"dnsServer2"`
+			IPSettings struct {
+				TelnetPort int    `json:"telnetPort"`
+				Ipaddr     string `json:"ipaddr"`
+				Netmask    string `json:"netmask"`
+				Gateway    string `json:"gateway"`
+			} `json:"ipSettings"`
+			LastIpaddr string `json:"lastIpaddr"`
+			BootProto  string `json:"bootProto"`
+		} `json:"eth0"`
+	} `json:"network"`
+}
+
+type atlonaHardwareInfo struct {
+	System struct {
+		PowerStatus     string `json:"powerStatus"`
+		VendorID        string `json:"vendorID"`
+		Model           string `json:"model"`
+		SerialNumber    string `json:"serialNumber"`
+		FirmwareVersion struct {
+			Package          string `json:"package"`
+			MasterMCU        string `json:"masterMCU"`
+			TransceiverChipB string `json:"transceiverChip_B"`
+			TransceiverChipC string `json:"transceiverChip_C"`
+			TransceiverChipE string `json:"transceiverChip_E"`
+			TransceiverChipF string `json:"transceiverChip_F"`
+			Audio            string `json:"audio"`
+			Fpga             string `json:"fpga"`
+			Usb              string `json:"usb"`
+			ScalerChip       string `json:"scalerChip"`
+			ValensA          string `json:"valens_A"`
+			ValensB          string `json:"valens_B"`
+			ValensC          string `json:"valens_C"`
+			SlaveMCU         string `json:"slaveMCU"`
+			TransceiverChipA string `json:"transceiverChip_A"`
+		} `json:"firmwareVersion"`
+	} `json:"system"`
+}
+*/
