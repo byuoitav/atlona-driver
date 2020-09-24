@@ -193,7 +193,7 @@ func (vs *AtOmePs62) SetAudioVideoInput(ctx context.Context, output, input strin
 
 // GetVolumes .
 func (vs *AtOmePs62) GetVolumes(ctx context.Context, blocks []string) (map[string]int, error) {
-	body := `{ "getConfig": "audio": { "audOut": {}}}`
+	body := `{ "getConfig": { "audio": { "audOut": {}}}}`
 
 	config, err := vs.getConfig(ctx, body)
 	if err != nil {
@@ -222,9 +222,9 @@ func (vs *AtOmePs62) GetVolumes(ctx context.Context, blocks []string) (map[strin
 }
 
 // SetVolume .
-func (vs *AtOmePs62) SetVolume(ctx context.Context, output string, level int) error {
-	if output != "zoneOut1" && output != "zoneOut2" {
-		return errors.New("invalid output")
+func (vs *AtOmePs62) SetVolume(ctx context.Context, block string, level int) error {
+	if block != "zoneOut1" && block != "zoneOut2" {
+		return errors.New("invalid block")
 	}
 
 	// Atlona volume levels are from -90 to 10 and the number we receive is 0-100
@@ -236,7 +236,7 @@ func (vs *AtOmePs62) SetVolume(ctx context.Context, output string, level int) er
 		level = int(convertedVolume)
 	}
 
-	body := fmt.Sprintf(`{ "setConfig": { "audio": { "audOut": { "%s": { "audioVol": %d }}}}}`, output, level)
+	body := fmt.Sprintf(`{ "setConfig": { "audio": { "audOut": { "%s": { "audioVol": %d }}}}}`, block, level)
 	if err := vs.setConfig(ctx, body); err != nil {
 		return fmt.Errorf("unable to set config: %w", err)
 	}
@@ -246,7 +246,7 @@ func (vs *AtOmePs62) SetVolume(ctx context.Context, output string, level int) er
 
 // GetMutes .
 func (vs *AtOmePs62) GetMutes(ctx context.Context, blocks []string) (map[string]bool, error) {
-	body := `{ "getConfig": "audio": { "audOut": {}}}`
+	body := `{ "getConfig": { "audio": { "audOut": {}}}}`
 
 	config, err := vs.getConfig(ctx, body)
 	if err != nil {
@@ -263,12 +263,12 @@ func (vs *AtOmePs62) GetMutes(ctx context.Context, blocks []string) (map[string]
 }
 
 // SetMute .
-func (vs *AtOmePs62) SetMute(ctx context.Context, output string, muted bool) error {
-	if output != "zoneOut1" && output != "zoneOut2" {
-		return errors.New("invalid output")
+func (vs *AtOmePs62) SetMute(ctx context.Context, block string, muted bool) error {
+	if block != "zoneOut1" && block != "zoneOut2" {
+		return errors.New("invalid block")
 	}
 
-	body := fmt.Sprintf(`{ "setConfig": { "audio": { "audOut": { "%s": { "analogOut": { "audioMute": %t }}}}}}`, output, muted)
+	body := fmt.Sprintf(`{ "setConfig": { "audio": { "audOut": { "%s": { "analogOut": { "audioMute": %t }}}}}}`, block, muted)
 	if err := vs.setConfig(ctx, body); err != nil {
 		return fmt.Errorf("unable to set config: %w", err)
 	}
