@@ -96,19 +96,3 @@ func (vs *AtlonaVideoSwitcher2x1) GetInfo(ctx context.Context) (interface{}, err
 	var info interface{}
 	return info, fmt.Errorf("not currently implemented")
 }
-
-func (vs *AtlonaVideoSwitcher2x1) SetVolume(ctx context.Context, block string, volume int) error {
-	return fmt.Errorf("this function is not available for this device type")
-}
-
-func (vs *AtlonaVideoSwitcher2x1) SetMute(ctx context.Context, block string, muted bool) error {
-	return fmt.Errorf("this function is not available for this device type")
-}
-
-func (vs *AtlonaVideoSwitcher2x1) GetVolumes(ctx context.Context, blocks []string) (map[string]int, error) {
-	return make(map[string]int), fmt.Errorf("this function is not available for this device type")
-}
-
-func (vs *AtlonaVideoSwitcher2x1) GetMutes(ctx context.Context, blocks []string) (map[string]bool, error) {
-	return make(map[string]bool), fmt.Errorf("this function is not available for this device type")
-}
